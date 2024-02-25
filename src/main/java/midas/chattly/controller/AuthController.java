@@ -4,6 +4,7 @@ import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import midas.chattly.dto.ResetPasswordRequest;
 import midas.chattly.dto.VerifyEmailRequestDto;
 import midas.chattly.service.AuthService;
 import org.springframework.http.HttpStatus;
@@ -55,6 +56,14 @@ public class AuthController {
     public ResponseEntity<Object> signup(@RequestPart(value = "file", required = false) MultipartFile multipartFile,@Valid @RequestPart(value = "userRequestDto") UserRequestDto userRequestDto) throws IOException {
 
         authService.signup(userRequestDto.getEmail(), userRequestDto.getPassword(), multipartFile, userRequestDto.getNickName());
+
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Object> resetPassword(@Valid @RequestBody ResetPasswordRequest resetPasswordRequest) {
+
+        authService.resetPassword(resetPasswordRequest);
 
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
