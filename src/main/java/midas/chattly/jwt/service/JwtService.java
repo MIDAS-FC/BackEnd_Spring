@@ -134,5 +134,15 @@ public class JwtService {
         return false;
     }
 
+    public void updateRefreshToken(String socialId, String refreshToken) {
 
+        userRepository.findBySocialId(socialId)
+                .ifPresentOrElse(
+                        user -> {
+                            user.updateRefreshToken(refreshToken);
+                            userRepository.save(user); // 변경 사항을 저장
+                        },
+                        () -> new Exception("일치하는 회원이 없습니다.")
+                );
+    }
 }
