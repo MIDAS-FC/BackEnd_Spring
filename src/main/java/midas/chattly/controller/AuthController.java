@@ -32,4 +32,12 @@ public class AuthController {
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
+    @PostMapping("/resend-email")
+    public ResponseEntity<Object> reSendEmail(@RequestBody HashMap<String, String> email) throws MessagingException {
+
+        return ResponseEntity.ok(authService.sendEmail(email.get("email")));
+
+    }
+
+
 }
