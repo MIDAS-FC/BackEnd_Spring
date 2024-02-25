@@ -1,6 +1,8 @@
 package midas.chattly.jwt.service;
 
 
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import lombok.Getter;
@@ -10,6 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.security.Key;
+import java.util.Date;
 
 @Service
 @Getter
@@ -41,5 +44,19 @@ public class JwtService {
         this.key = Keys.hmacShaKeyFor(keyBytes);
         this.userRepository = userRepository;
     }
+    public String generateAccessToken(String email) {
+
+        long now = (new Date()).getTime();
+
+        Date accessTokenExpiresIn = new Date(now + ACCESS_TOKEN_EXPIRE_TIME);
+
+        return  Jwts.builder()
+                .setSubject(ACCESS_TOKEN_SUBJECT)
+                .claim(EMAIL_CLAIM, email)
+                .setExpiration(accessTokenExpiresIn)
+                .signWith(key, SignatureAlgorithm.HS512)
+                .compact();
+    }
+
 
 }
