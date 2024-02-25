@@ -125,5 +125,17 @@ public class AuthService {
         return url;
     }
 
+    @Transactional
+    public void resetPassword(ResetPasswordRequest resetPasswordRequest) {
 
+        if (!resetPasswordRequest.getPassword().equals(resetPasswordRequest.getRePassword())) {
+            throw new RuntimeException("비밀번호를 재입력 해주세요.");
+        }
+
+        userRepository.findBySocialTypeAndEmail(resetPasswordRequest.getSocialType(),resetPasswordRequest.getEmail())
+                .ifPresent(user -> {
+                    user.updatePassword(passwordEncoder.encode(resetPasswordRequest.getPassword()));
+                    userRepository.save(user);
+                });
+    }
 }
