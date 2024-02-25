@@ -3,7 +3,9 @@ package midas.chattly.controller;
 import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import midas.chattly.dto.VerifyEmailRequestDto;
 import midas.chattly.service.AuthService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -23,5 +25,11 @@ public class AuthController {
         return ResponseEntity.ok(authService.sendEmail(email.get("email")));
     }
 
+    @PostMapping("/verify-email")
+    public ResponseEntity<Object> verifyEmail(@RequestBody VerifyEmailRequestDto verifyEmailRequestDto) {
+
+        authService.verifyEmail(verifyEmailRequestDto);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    }
 
 }
