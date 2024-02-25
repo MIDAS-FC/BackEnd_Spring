@@ -5,6 +5,7 @@ import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import midas.chattly.dto.Role;
+import midas.chattly.dto.VerifyEmailRequestDto;
 import midas.chattly.dto.VerifyEmailResonseDto;
 import midas.chattly.entity.User;
 import midas.chattly.repository.UserRepository;
@@ -73,6 +74,19 @@ public class AuthService {
         userRepository.save(user);
     }
 
+
+    public void verifyEmail(VerifyEmailRequestDto verifyEmailRequestDto) {
+
+        if (userRepository.existsByEmail(verifyEmailRequestDto.getEmail())) {
+            throw new RuntimeException("이미 존재하는 이메일입니다.");
+        }
+        if (!verifyEmailRequestDto.getRandomNum().equals(verifyEmailRequestDto.getInputNum())) {
+            throw new RuntimeException("인증번호가 틀렸습니다.");
+        }
+        if (verifyEmailRequestDto.getSendTime().isAfter(verifyEmailRequestDto.getExpireTime())) {
+            throw new RuntimeException("인증번호가 만료되었습니다.");
+        }
+    }
 
 
 }
