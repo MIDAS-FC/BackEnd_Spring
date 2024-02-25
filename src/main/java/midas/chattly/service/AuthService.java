@@ -1,9 +1,11 @@
 package midas.chattly.service;
 
 import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.ObjectMetadata;
 import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import midas.chattly.dto.ResetPasswordRequest;
 import midas.chattly.dto.Role;
 import midas.chattly.dto.VerifyEmailRequestDto;
 import midas.chattly.dto.VerifyEmailResonseDto;
@@ -14,9 +16,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Random;
+import java.util.UUID;
+
+import static midas.chattly.oauth.dto.SocialType.CHATTLY;
 
 
 @Slf4j
@@ -86,6 +94,35 @@ public class AuthService {
         if (verifyEmailRequestDto.getSendTime().isAfter(verifyEmailRequestDto.getExpireTime())) {
             throw new RuntimeException("인증번호가 만료되었습니다.");
         }
+    }
+
+    @Transactional
+    public void signup(String email, String pw, MultipartFile multipartFile, String nickName) throws IOException {
+        String socialId = UUID.randomUUID().toString().replace("-", "").substring(0, 13);
+        String password = passwordEncoder.encode(pw);
+        String url;
+
+        url = createProfileUrl(multipartFile);
+
+        User user = userRepository.findByNickName(nickName).get();
+        user.updateAll(email, password, socialId,url,CHATTLY.getKey());
+        userRepository.save(user);
+        userRepository.deleteEverything();
+    }
+
+    private String createProfileUrl(MultipartFile multipartFile) throws IOException {
+        String url;
+        if (multipartFile.isEmpty()) {
+            url = defaultProfile;
+        } else {
+            String fileName = multipartFile.getOriginalFilename();
+            ObjectMetadata metadata = new ObjectMetadata();
+            metadata.setContentType(multipartFile.getContentType());
+            metadata.setContentLength(multipartFile.getSize());
+            amazonS3Client.putObject(bucket, fileName, multipartFile.getInputStream(), metadata);
+            url = amazonS3Client.getUrl(bucket, fileName).toString();
+        }
+        return url;
     }
 
 
