@@ -5,6 +5,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import midas.chattly.dto.ResetPasswordRequest;
+import midas.chattly.dto.UserRequestDto;
 import midas.chattly.dto.VerifyEmailRequestDto;
 import midas.chattly.login.dto.LoginRequestDto;
 import midas.chattly.service.AuthService;
