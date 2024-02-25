@@ -24,7 +24,7 @@ import java.time.LocalDateTime;
 import java.util.Random;
 import java.util.UUID;
 
-import static midas.chatly.oauth.dto.SocialType.CHATTLY;
+import static midas.chatly.oauth.dto.SocialType.CHATLY;
 
 
 @Slf4j
@@ -105,7 +105,7 @@ public class AuthService {
         url = createProfileUrl(multipartFile);
 
         User user = userRepository.findByNickName(nickName).get();
-        user.updateAll(email, password, socialId,url,CHATTLY.getKey());
+        user.updateAll(email, password, socialId,url,CHATLY.getKey());
         userRepository.save(user);
         userRepository.deleteEverything();
     }
