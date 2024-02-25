@@ -58,5 +58,18 @@ public class JwtService {
                 .compact();
     }
 
+    public String generateRefreshToken(String email) {
+
+        long now = (new Date()).getTime();
+
+        Date refreshTokenExpiresIn = new Date(now + ACCESS_TOKEN_EXPIRE_TIME);
+
+        return  Jwts.builder()
+                .setSubject(REFRESH_TOKEN_SUBJECT)
+                .claim(EMAIL_CLAIM,email)
+                .setExpiration(refreshTokenExpiresIn)
+                .signWith(key, SignatureAlgorithm.HS512)
+                .compact();
+    }
 
 }
