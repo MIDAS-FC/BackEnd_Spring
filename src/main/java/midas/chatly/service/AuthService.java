@@ -131,6 +131,9 @@ public class AuthService {
         if (!resetPasswordRequest.getPassword().equals(resetPasswordRequest.getRePassword())) {
             throw new RuntimeException("비밀번호를 재입력 해주세요.");
         }
+        if (resetPasswordRequest.getSocialType() != CHATLY.getKey()) {
+            throw new RuntimeException("자체 서비스 회원가입 시 만든 비밀번호만 변경 가능합니다.");
+        }
 
         userRepository.findBySocialTypeAndEmail(resetPasswordRequest.getSocialType(),resetPasswordRequest.getEmail())
                 .ifPresent(user -> {
