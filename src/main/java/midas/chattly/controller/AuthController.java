@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import midas.chattly.dto.ResetPasswordRequest;
 import midas.chattly.dto.VerifyEmailRequestDto;
+import midas.chattly.login.dto.LoginRequestDto;
 import midas.chattly.service.AuthService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -68,4 +69,11 @@ public class AuthController {
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
+    @PostMapping("/login")
+    public ResponseEntity<Object> login(@Valid @RequestBody LoginRequestDto loginRequestDto) {
+
+        log.info("email:{}",loginRequestDto.getEmail());
+
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    }
 }
