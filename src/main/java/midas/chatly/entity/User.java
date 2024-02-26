@@ -49,6 +49,7 @@ public class User {
     public void updateRefreshToken(String updateRefreshToken) {
         this.refreshToken = updateRefreshToken;
     }
+    public void updateRole(String role) {this.role = role;}
 
 
     public void updateAll(String email, String pw, String socialId,String url,String socialType) {
