@@ -43,10 +43,10 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 .getProviderDetails().getUserInfoEndpoint().getUserNameAttributeName();
         Map<String, Object> attributes = oAuth2User.getAttributes();
         OAuthAttributes extractAttributes = OAuthAttributes.of(socialType, userNameAttributeName, attributes);
-        User createdUser = getUser(extractAttributes, socialType,passwordEncoder); // getUser() 메소드로 User 객체 생성 후 반환
+        User createdUser = getUser(extractAttributes, socialType,passwordEncoder);
 
         return new CustomOAuth2User(
-                Collections.singleton(new SimpleGrantedAuthority(Role.USER.getKey())),
+                Collections.singleton(new SimpleGrantedAuthority(createdUser.getRole())),
                 attributes,
                 extractAttributes.getNameAttributeKey(),
                 createdUser.getEmail(),
@@ -73,9 +73,16 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         if (users.isEmpty()) {
             user = saveUser(attributes, socialType,passwordEncoder);
         } else {
+            changeRole(users);
             user = users.get();
         }
         return user;
+    }
+
+    private void changeRole(Optional<User> users) {
+        User user = users.get();
+        user.updateRole(Role.USER.getKey());
+        userRepository.save(user);
     }
 
     private User saveUser(OAuthAttributes attributes, String socialType,PasswordEncoder passwordEncoder) {
