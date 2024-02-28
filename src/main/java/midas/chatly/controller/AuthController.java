@@ -4,6 +4,7 @@ import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import midas.chatly.dto.request.EmailRequest;
 import midas.chatly.dto.request.UserRequest;
 import midas.chatly.service.AuthService;
 import midas.chatly.dto.request.ResetPasswordRequest;
@@ -31,8 +32,8 @@ public class AuthController {
         Front에서 email(이메일) 데이터 받음
      */
     @PostMapping("/send-email")
-    public ResponseEntity<Object> sendEmail(@RequestBody HashMap<String, String> email) throws MessagingException {
-        return ResponseEntity.ok(authService.sendEmail(email.get("email")));
+    public ResponseEntity<Object> sendEmail(@RequestBody EmailRequest emailRequest) throws MessagingException {
+        return ResponseEntity.ok(authService.sendEmail(emailRequest));
     }
 
     /*
@@ -50,9 +51,9 @@ public class AuthController {
         Front에서 email(이메일) 데이터 받음
      */
     @PostMapping("/resend-email")
-    public ResponseEntity<Object> reSendEmail(@RequestBody HashMap<String, String> email) throws MessagingException {
+    public ResponseEntity<Object> reSendEmail(@RequestBody EmailRequest emailRequest) throws MessagingException {
 
-        return ResponseEntity.ok(authService.sendEmail(email.get("email")));
+        return ResponseEntity.ok(authService.sendEmail(emailRequest));
 
     }
 

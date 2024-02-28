@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 public class VerifyEmailRequest {
 
     private final String email;
+    private final String socialType;
     private final String randomNum;
     private final String inputNum;
     private final LocalDateTime sendTime;

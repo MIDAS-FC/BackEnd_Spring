@@ -5,6 +5,7 @@ import com.amazonaws.services.s3.model.ObjectMetadata;
 import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import midas.chatly.dto.request.EmailRequest;
 import midas.chatly.util.EmailUtil;
 import midas.chatly.dto.request.ResetPasswordRequest;
 import midas.chatly.dto.Role;
@@ -44,17 +45,15 @@ public class AuthService {
     @Value("default.profile")
     private String defaultProfile;
 
-    public VerifyEmailResonse sendEmail(String email) throws MessagingException {
+    public VerifyEmailResonse sendEmail(EmailRequest emailRequest) throws MessagingException {
 
-        if (userRepository.existsByEmail(email)) {
-            throw new RuntimeException("이미 존재하는 이메일입니다.");
-        }
+        validateEmail(emailRequest);
 
-        String randomNum = String.valueOf((new Random().nextInt(90000) + 10000));
+        String randomNum = String.valueOf((new Random().nextInt(9000) + 1000));
         LocalDateTime createTime = LocalDateTime.now();
         LocalDateTime expireTime = LocalDateTime.now().plusMinutes(10);
 
-        emailUtil.sendEmail(email, randomNum);
+        emailUtil.sendEmail(emailRequest.getEmail(), randomNum);
 
         VerifyEmailResonse verifyEmailResonse = VerifyEmailResonse.
                 builder()
@@ -65,6 +64,15 @@ public class AuthService {
 
         return verifyEmailResonse;
 
+    }
+
+    private void validateEmail(EmailRequest emailRequest) {
+        if (userRepository.existsByEmailAndSocialType(emailRequest.getEmail(),emailRequest.getSocialType()) && emailRequest.getEmailType().equals("sign-up")) {
+            throw new RuntimeException("이미 가입된 이메일입니다.");
+        }
+        else if (!userRepository.existsByEmailAndSocialType(emailRequest.getEmail(),emailRequest.getSocialType()) && emailRequest.getEmailType().equals("reset-password")) {
+            throw new RuntimeException("존재하지 않는 이메일입니다.");
+        }
     }
 
     @Transactional
@@ -85,7 +93,7 @@ public class AuthService {
 
     public void verifyEmail(VerifyEmailRequest verifyEmailRequest) {
 
-        if (userRepository.existsByEmail(verifyEmailRequest.getEmail())) {
+        if (userRepository.existsByEmailAndSocialType(verifyEmailRequest.getEmail(), verifyEmailRequest.getSocialType())) {
             throw new RuntimeException("이미 존재하는 이메일입니다.");
         }
         if (!verifyEmailRequest.getRandomNum().equals(verifyEmailRequest.getInputNum())) {
