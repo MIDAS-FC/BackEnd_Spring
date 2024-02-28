@@ -29,7 +29,7 @@ public class AuthController {
     private final AuthService authService;
 
     /*
-        Front에서 email(이메일) 데이터 받음
+        Front에서 email(이메일), socialType(자체 서비스/카카오/네이버/구글) 데이터 받음
      */
     @PostMapping("/send-email")
     public ResponseEntity<Object> sendEmail(@RequestBody EmailRequest emailRequest) throws MessagingException {
@@ -37,7 +37,7 @@ public class AuthController {
     }
 
     /*
-        Front에서 email(이메일), randomNum(서버에서 발급한 인증번호), inputNum(사용자가 입력한 인증번호),
+        Front에서 email(이메일), socialType(자체 서비스/카카오/네이버/구글), randomNum(서버에서 발급한 인증번호), inputNum(사용자가 입력한 인증번호),
                  sendTime(사용자가 입력한 인증번호 시간), expireTime(서버에서 발급한 인증번호 만료시간) 데이터 받음
      */
     @PostMapping("/verify-email")
