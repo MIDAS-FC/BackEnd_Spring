@@ -4,11 +4,11 @@ import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import midas.chatly.dto.request.UserRequest;
 import midas.chatly.service.AuthService;
-import midas.chatly.dto.ResetPasswordRequest;
-import midas.chatly.dto.UserRequestDto;
-import midas.chatly.dto.VerifyEmailRequestDto;
-import midas.chatly.login.dto.LoginRequestDto;
+import midas.chatly.dto.request.ResetPasswordRequest;
+import midas.chatly.dto.request.VerifyEmailRequest;
+import midas.chatly.login.dto.request.LoginRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -40,9 +40,9 @@ public class AuthController {
                  sendTime(사용자가 입력한 인증번호 시간), expireTime(서버에서 발급한 인증번호 만료시간) 데이터 받음
      */
     @PostMapping("/verify-email")
-    public ResponseEntity<Object> verifyEmail(@RequestBody VerifyEmailRequestDto verifyEmailRequestDto) {
+    public ResponseEntity<Object> verifyEmail(@RequestBody VerifyEmailRequest verifyEmailRequest) {
 
-        authService.verifyEmail(verifyEmailRequestDto);
+        authService.verifyEmail(verifyEmailRequest);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
@@ -80,9 +80,9 @@ public class AuthController {
                                            }
      */
     @PostMapping("/signup")
-    public ResponseEntity<Object> signup(@RequestPart(value = "file", required = false) MultipartFile multipartFile,@Valid @RequestPart(value = "userRequestDto") UserRequestDto userRequestDto) throws IOException {
+    public ResponseEntity<Object> signup(@RequestPart(value = "file", required = false) MultipartFile multipartFile,@Valid @RequestPart(value = "userRequestDto") UserRequest userRequest) throws IOException {
 
-        authService.signup(userRequestDto.getEmail(), userRequestDto.getPassword(), multipartFile, userRequestDto.getNickName());
+        authService.signup(userRequest.getEmail(), userRequest.getPassword(), multipartFile, userRequest.getNickName());
 
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
@@ -103,9 +103,9 @@ public class AuthController {
          Front에서 email(이메일), password(변경 할 비밀번호), socialType(로그인 타입) 데이터 받음
     */
     @PostMapping("/login")
-    public ResponseEntity<Object> login(@Valid @RequestBody LoginRequestDto loginRequestDto) {
+    public ResponseEntity<Object> login(@Valid @RequestBody LoginRequest loginRequest) {
 
-        log.info("email:{}",loginRequestDto.getEmail());
+        log.info("email:{}", loginRequest.getEmail());
 
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }

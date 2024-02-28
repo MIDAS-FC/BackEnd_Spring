@@ -1,4 +1,4 @@
-package midas.chatly.login.dto;
+package midas.chatly.login.dto.request;
 
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public class LoginRequestDto {
+public class LoginRequest {
 
     @NotNull
     private String email;

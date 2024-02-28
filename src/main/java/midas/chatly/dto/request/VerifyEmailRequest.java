@@ -1,4 +1,4 @@
-package midas.chatly.dto;
+package midas.chatly.dto.request;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @Builder
 @Getter
 @RequiredArgsConstructor
-public class VerifyEmailRequestDto {
+public class VerifyEmailRequest {
 
     private final String email;
     private final String randomNum;

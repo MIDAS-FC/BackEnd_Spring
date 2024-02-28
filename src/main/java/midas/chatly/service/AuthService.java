@@ -6,10 +6,10 @@ import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import midas.chatly.util.EmailUtil;
-import midas.chatly.dto.ResetPasswordRequest;
+import midas.chatly.dto.request.ResetPasswordRequest;
 import midas.chatly.dto.Role;
-import midas.chatly.dto.VerifyEmailRequestDto;
-import midas.chatly.dto.VerifyEmailResonseDto;
+import midas.chatly.dto.request.VerifyEmailRequest;
+import midas.chatly.dto.response.VerifyEmailResonse;
 import midas.chatly.entity.User;
 import midas.chatly.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,7 +44,7 @@ public class AuthService {
     @Value("default.profile")
     private String defaultProfile;
 
-    public VerifyEmailResonseDto sendEmail(String email) throws MessagingException {
+    public VerifyEmailResonse sendEmail(String email) throws MessagingException {
 
         if (userRepository.existsByEmail(email)) {
             throw new RuntimeException("이미 존재하는 이메일입니다.");
@@ -56,14 +56,14 @@ public class AuthService {
 
         emailUtil.sendEmail(email, randomNum);
 
-        VerifyEmailResonseDto verifyEmailResonseDto = VerifyEmailResonseDto.
+        VerifyEmailResonse verifyEmailResonse = VerifyEmailResonse.
                 builder()
                 .randomNum(randomNum)
                 .createTime(createTime)
                 .expireTime(expireTime)
                 .build();
 
-        return verifyEmailResonseDto;
+        return verifyEmailResonse;
 
     }
 
@@ -83,15 +83,15 @@ public class AuthService {
     }
 
 
-    public void verifyEmail(VerifyEmailRequestDto verifyEmailRequestDto) {
+    public void verifyEmail(VerifyEmailRequest verifyEmailRequest) {
 
-        if (userRepository.existsByEmail(verifyEmailRequestDto.getEmail())) {
+        if (userRepository.existsByEmail(verifyEmailRequest.getEmail())) {
             throw new RuntimeException("이미 존재하는 이메일입니다.");
         }
-        if (!verifyEmailRequestDto.getRandomNum().equals(verifyEmailRequestDto.getInputNum())) {
+        if (!verifyEmailRequest.getRandomNum().equals(verifyEmailRequest.getInputNum())) {
             throw new RuntimeException("인증번호가 틀렸습니다.");
         }
-        if (verifyEmailRequestDto.getSendTime().isAfter(verifyEmailRequestDto.getExpireTime())) {
+        if (verifyEmailRequest.getSendTime().isAfter(verifyEmailRequest.getExpireTime())) {
             throw new RuntimeException("인증번호가 만료되었습니다.");
         }
     }
