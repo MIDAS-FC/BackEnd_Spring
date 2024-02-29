@@ -1,14 +1,17 @@
 package midas.chatly.dto.request;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 
 @Getter
-@RequiredArgsConstructor
+@NoArgsConstructor
+@AllArgsConstructor
 public class EmailRequest {
 
-    private final String email;
-    private final String emailType;
-    private final String socialType;
+    private String email;
+    private String emailType;
+    private String socialType;
 
 }
