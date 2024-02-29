@@ -29,7 +29,7 @@ public class AuthController {
     private final AuthService authService;
 
     /*
-        Front에서 email(이메일), socialType(자체 서비스/카카오/네이버/구글) 데이터 받음
+        Front에서 email(이메일), emailType(회원가입 때의 이메일 보내기인지, 비밀번호 재설정 때의 이메일 보내기인지), socialType(자체 서비스/카카오/네이버/구글) 데이터 받음
      */
     @PostMapping("/send-email")
     public ResponseEntity<Object> sendEmail(@RequestBody EmailRequest emailRequest) throws MessagingException {
