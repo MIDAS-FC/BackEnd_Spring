@@ -120,7 +120,7 @@ public class AuthService {
 
     private String createProfileUrl(MultipartFile multipartFile) throws IOException {
         String url;
-        if (multipartFile.isEmpty()) {
+        if (multipartFile==null) {
             url = defaultProfile;
         } else {
             String fileName = multipartFile.getOriginalFilename();
