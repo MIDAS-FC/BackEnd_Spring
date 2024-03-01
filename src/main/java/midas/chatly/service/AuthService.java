@@ -77,7 +77,7 @@ public class AuthService {
 
     @Transactional
     public void verifyNickName(String nickName) {
-
+        userRepository.deleteEverything();
         if (userRepository.existsByNickName(nickName)) {
             throw new RuntimeException("이미 존재하는 닉네임입니다.");
         }
@@ -93,8 +93,13 @@ public class AuthService {
 
     public void verifyEmail(VerifyEmailRequest verifyEmailRequest) {
 
-        if (userRepository.existsByEmailAndSocialType(verifyEmailRequest.getEmail(), verifyEmailRequest.getSocialType())) {
+        if (userRepository.existsByEmailAndSocialType(verifyEmailRequest.getEmail(), verifyEmailRequest.getSocialType())
+                && verifyEmailRequest.getEmailType().equals("sign-up")) {
             throw new RuntimeException("이미 존재하는 이메일입니다.");
+        }
+        else if (!userRepository.existsByEmailAndSocialType(verifyEmailRequest.getEmail(), verifyEmailRequest.getSocialType())
+                && verifyEmailRequest.getEmailType().equals("reset-password")) {
+            throw new RuntimeException("존재하지 않는 이메일입니다.");
         }
         if (!verifyEmailRequest.getRandomNum().equals(verifyEmailRequest.getInputNum())) {
             throw new RuntimeException("인증번호가 틀렸습니다.");
@@ -115,7 +120,6 @@ public class AuthService {
         User user = userRepository.findByNickName(nickName).get();
         user.updateAll(email, password, socialId,url,CHATLY.getKey());
         userRepository.save(user);
-        userRepository.deleteEverything();
     }
 
     private String createProfileUrl(MultipartFile multipartFile) throws IOException {

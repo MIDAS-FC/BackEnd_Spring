@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 public class VerifyEmailRequest {
 
     private String email;
+    private String emailType;
     private String socialType;
     private String randomNum;
     private String inputNum;
