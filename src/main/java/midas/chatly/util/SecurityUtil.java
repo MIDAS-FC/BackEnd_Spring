@@ -1,7 +1,10 @@
 package midas.chatly.util;
 
+import midas.chatly.error.CustomException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+
+import static midas.chatly.error.ErrorCode.NO_AUTHENTICATION_INFO;
 
 public class SecurityUtil {
 
@@ -13,7 +16,7 @@ public class SecurityUtil {
         final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication == null || authentication.getName() == null) {
-            throw  new RuntimeException("Security Context 에 인증 정보가 없습니다.");
+            throw new CustomException(NO_AUTHENTICATION_INFO);
         }
 
         return Long.parseLong(authentication.getName());

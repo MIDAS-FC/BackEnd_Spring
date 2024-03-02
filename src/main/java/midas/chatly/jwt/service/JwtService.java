@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import midas.chatly.error.CustomException;
 import midas.chatly.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,8 @@ import org.springframework.stereotype.Service;
 import java.security.Key;
 import java.util.Date;
 import java.util.Optional;
+
+import static midas.chatly.error.ErrorCode.NO_EXIST_USER_SOCIALID;
 
 @Service
 @Getter
@@ -106,12 +109,12 @@ public class JwtService {
         try {
             // 토큰 유효성 검사하는 데에 사용할 알고리즘이 있는 JWT verifier builder 반환
             return Optional.ofNullable(Jwts.parser()
-                            .setSigningKey(key)
-                            .build()
-                            .parseClaimsJws(accessToken)
-                            .getBody()
-                            .get(EMAIL_CLAIM, String.class)
-                    );
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(accessToken)
+                    .getBody()
+                    .get(EMAIL_CLAIM, String.class)
+            );
         } catch (Exception e) {
             log.error("액세스 토큰이 유효하지 않습니다.");
             return Optional.empty();
@@ -142,7 +145,9 @@ public class JwtService {
                             user.updateRefreshToken(refreshToken);
                             userRepository.save(user); // 변경 사항을 저장
                         },
-                        () -> new Exception("일치하는 회원이 없습니다.")
+                        () -> new CustomException(NO_EXIST_USER_SOCIALID)
                 );
+
     }
 }
+

@@ -5,27 +5,28 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import midas.chatly.entity.User;
+import midas.chatly.error.CustomException;
 import midas.chatly.jwt.service.JwtService;
 import midas.chatly.repository.UserRepository;
-import midas.chatly.entity.User;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper;
 import org.springframework.security.core.authority.mapping.NullAuthoritiesMapper;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
-
 
 import java.io.IOException;
 import java.util.UUID;
 
-@Slf4j
+import static midas.chatly.error.ErrorCode.*;
+
 @RequiredArgsConstructor
 public class JwtAuthenticationProcessingFilter extends OncePerRequestFilter {
 
-    private static final String NO_CHECK_URL = "/login";
+    private static final String LOGIN_CHECK_URL = "/login";
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
@@ -34,14 +35,15 @@ public class JwtAuthenticationProcessingFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+        AntPathMatcher pathMatcher = new AntPathMatcher();
+        String requestURI = request.getRequestURI();
 
-        if (request.getRequestURI().equals(NO_CHECK_URL)) {
-            log.info("dqdjdjq");
+        if (requestURI.equals(LOGIN_CHECK_URL) || pathMatcher.match("/auth/**", requestURI)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-          String refreshToken = jwtService.extractRefreshToken(request)
+        String refreshToken = jwtService.extractRefreshToken(request)
                 .filter(jwtService::isTokenValid)
                 .orElse(null);
 
@@ -58,30 +60,44 @@ public class JwtAuthenticationProcessingFilter extends OncePerRequestFilter {
     public void checkRefreshTokenAndReIssueAccessToken(HttpServletResponse response, String refreshToken) {
 
         userRepository.findByRefreshToken(refreshToken)
-                .ifPresent(user -> {
-                    String reIssuedRefreshToken = reIssueRefreshToken(user);
-                    jwtService.sendAccessAndRefreshToken(response, jwtService.generateAccessToken(user.getEmail()),
-                            reIssuedRefreshToken);
-                });
+                .ifPresentOrElse(user -> {
+                            String reIssuedRefreshToken = reIssueRefreshToken(user);
+                            jwtService.sendAccessAndRefreshToken(response, jwtService.generateAccessToken(user.getEmail()),
+                                    reIssuedRefreshToken);
+                        }, ()  ->  new CustomException(NO_EXIST_USER_REFRESHTOKEN)
+
+                );
     }
 
-     private String reIssueRefreshToken(User refreshToken) {
+    private String reIssueRefreshToken(User refreshToken) {
         String reIssuedRefreshToken = jwtService.generateRefreshToken(refreshToken.getEmail());
         refreshToken.updateRefreshToken(reIssuedRefreshToken);
         userRepository.saveAndFlush(refreshToken);
         return reIssuedRefreshToken;
     }
 
-     public void checkAccessTokenAndAuthentication(HttpServletRequest request, HttpServletResponse response,
+    public void checkAccessTokenAndAuthentication(HttpServletRequest request, HttpServletResponse response,
                                                   FilterChain filterChain) throws ServletException, IOException {
         jwtService.extractAccessToken(request)
                 .filter(jwtService::isTokenValid)
-                .ifPresent(accessToken -> jwtService.extractEmail(accessToken)
-                        .ifPresent(email -> userRepository.findByEmail(email)
-                                .ifPresent(this::saveAuthentication)));
+                .ifPresentOrElse(accessToken -> {
+                            // Token이 유효할 때
+                            jwtService.extractEmail(accessToken)
+                                    .ifPresentOrElse(email -> {
+                                                // Email 추출 성공 시
+                                                userRepository.findByEmail(email)
+                                                        .ifPresentOrElse(this::saveAuthentication,
+                                                                () -> new CustomException(NO_EXIST_USER_EMAIL)
+                                                        );
+                                            },
+                                            () -> new CustomException(NO_EXTRACT_EMAIL)
+                                    );
+                        }, () -> new CustomException(NO_EXTRACT_ACCESSTOKEN)
+                );
 
         filterChain.doFilter(request, response);
     }
+
 
     public void saveAuthentication(User user) {
         String password = user.getPassword();
@@ -97,7 +113,7 @@ public class JwtAuthenticationProcessingFilter extends OncePerRequestFilter {
 
         Authentication authentication =
                 new UsernamePasswordAuthenticationToken(userDetailsUser, null,
-                authoritiesMapper.mapAuthorities(userDetailsUser.getAuthorities()));
+                        authoritiesMapper.mapAuthorities(userDetailsUser.getAuthorities()));
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
     }
