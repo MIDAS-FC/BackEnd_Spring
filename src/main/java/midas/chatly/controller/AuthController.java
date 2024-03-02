@@ -12,16 +12,14 @@ import midas.chatly.dto.request.VerifyEmailRequest;
 import midas.chatly.login.dto.request.LoginRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestPart;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.HashMap;
 
 @Slf4j
+@RequestMapping("/auth")
 @RestController
 @RequiredArgsConstructor
 public class AuthController {
@@ -37,7 +35,7 @@ public class AuthController {
     }
 
     /*
-        Front에서 email(이메일), socialType(자체 서비스/카카오/네이버/구글), randomNum(서버에서 발급한 인증번호), inputNum(사용자가 입력한 인증번호),
+        Front에서 email(이메일), emailType(회원가입 때의 이메일 보내기인지, 비밀번호 재설정 때의 이메일 보내기인지), socialType(자체 서비스/카카오/네이버/구글), randomNum(서버에서 발급한 인증번호), inputNum(사용자가 입력한 인증번호),
                  sendTime(사용자가 입력한 인증번호 시간), expireTime(서버에서 발급한 인증번호 만료시간) 데이터 받음
      */
     @PostMapping("/verify-email")
