@@ -43,37 +43,18 @@ public class JwtAuthenticationProcessingFilter extends OncePerRequestFilter {
             return;
         }
 
-        String refreshToken = jwtService.extractRefreshToken(request)
+        String accessToken = jwtService.extractAccessToken(request)
                 .filter(jwtService::isTokenValid)
                 .orElse(null);
 
-        if (refreshToken != null) {
-            checkRefreshTokenAndReIssueAccessToken(response, refreshToken);
+        if (accessToken != null) {
+            checkAccessTokenAndAuthentication(request, response, filterChain);
             return;
         }
 
-        if (refreshToken == null) {
-            checkAccessTokenAndAuthentication(request, response, filterChain);
+        if (accessToken == null) {
+            throw new CustomException(NO_VALID_ACCESSTOKEN);
         }
-    }
-
-    public void checkRefreshTokenAndReIssueAccessToken(HttpServletResponse response, String refreshToken) {
-
-        userRepository.findByRefreshToken(refreshToken)
-                .ifPresentOrElse(user -> {
-                            String reIssuedRefreshToken = reIssueRefreshToken(user);
-                            jwtService.sendAccessAndRefreshToken(response, jwtService.generateAccessToken(user.getEmail()),
-                                    reIssuedRefreshToken);
-                        }, ()  ->  new CustomException(NO_EXIST_USER_REFRESHTOKEN)
-
-                );
-    }
-
-    private String reIssueRefreshToken(User refreshToken) {
-        String reIssuedRefreshToken = jwtService.generateRefreshToken(refreshToken.getEmail());
-        refreshToken.updateRefreshToken(reIssuedRefreshToken);
-        userRepository.saveAndFlush(refreshToken);
-        return reIssuedRefreshToken;
     }
 
     public void checkAccessTokenAndAuthentication(HttpServletRequest request, HttpServletResponse response,
@@ -84,7 +65,7 @@ public class JwtAuthenticationProcessingFilter extends OncePerRequestFilter {
                             // Token이 유효할 때
                             jwtService.extractEmail(accessToken)
                                     .ifPresentOrElse(email -> {
-                                                // Email 추출 성공 시
+                                                // Email 추출 성공 시f
                                                 userRepository.findByEmail(email)
                                                         .ifPresentOrElse(this::saveAuthentication,
                                                                 () -> new CustomException(NO_EXIST_USER_EMAIL)
