@@ -3,10 +3,15 @@ package midas.chatly.service;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import jakarta.mail.MessagingException;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import midas.chatly.dto.request.EmailRequest;
+import midas.chatly.entity.Token;
 import midas.chatly.error.CustomException;
+import midas.chatly.jwt.service.JwtService;
+import midas.chatly.repository.TokenRepository;
 import midas.chatly.util.EmailUtil;
 import midas.chatly.dto.request.ResetPasswordRequest;
 import midas.chatly.dto.Role;
@@ -36,10 +41,11 @@ import static midas.chatly.oauth.dto.SocialType.CHATLY;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final TokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailUtil emailUtil;
     private final AmazonS3Client amazonS3Client;
-
+    private final JwtService jwtService;
 
     @Value("${cloud.aws.s3.bucket}")
     private String bucket;
@@ -120,7 +126,10 @@ public class AuthService {
 
         User user = userRepository.findByNickName(nickName).orElseThrow(()->new CustomException(EXIST_USER_NICKNAME));
         user.updateAll(email, password, socialId,url,CHATLY.getKey());
-        userRepository.save(user);
+        Token token = new Token();
+        userRepository.saveAndFlush(user);
+        user.assignToken(token);
+        tokenRepository.saveAndFlush(token);
     }
 
     private String createProfileUrl(MultipartFile multipartFile) throws IOException {
@@ -154,5 +163,33 @@ public class AuthService {
                     user.updatePassword(passwordEncoder.encode(resetPasswordRequest.getPassword()));
                     userRepository.save(user);
                 },() -> new CustomException(NO_EXIST_USER_EMAIL_SOCIALTYPE));
+    }
+
+    public String validateCookie(HttpServletRequest request) {
+
+        String refreshToken = null;
+
+        // 쿠키에서 refreshToken 찾기
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if (cookie.getName().equals("Authorization-Refresh")) {
+                    refreshToken = cookie.getValue();
+                    break;
+                }
+            }
+        }
+
+        if (refreshToken != null) {
+            return refreshToken;
+        } else {
+            throw new CustomException(NO_EXIST_USER_REFRESHTOKEN);
+        }
+
+    }
+
+    public String validateToken(String refreshToken, String socialId) {
+
+        String token = jwtService.validRefreshToken(refreshToken,socialId);
+        return token;
     }
 }
