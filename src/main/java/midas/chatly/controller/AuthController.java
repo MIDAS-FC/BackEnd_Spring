@@ -1,15 +1,17 @@
 package midas.chatly.controller;
 
 import jakarta.mail.MessagingException;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import midas.chatly.dto.request.EmailRequest;
-import midas.chatly.dto.request.UserRequest;
-import midas.chatly.service.AuthService;
 import midas.chatly.dto.request.ResetPasswordRequest;
+import midas.chatly.dto.request.UserRequest;
 import midas.chatly.dto.request.VerifyEmailRequest;
-import midas.chatly.login.dto.request.LoginRequest;
+import midas.chatly.jwt.dto.request.ReIssueRequest;
+import midas.chatly.jwt.service.JwtService;
+import midas.chatly.service.AuthService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Map;
 
 @Slf4j
 @RequestMapping("/auth")
@@ -25,6 +28,7 @@ import java.util.HashMap;
 public class AuthController {
 
     private final AuthService authService;
+    private final JwtService jwtService;
 
     /*
         Front에서 email(이메일), emailType(회원가입 때의 이메일 보내기인지, 비밀번호 재설정 때의 이메일 보내기인지), socialType(자체 서비스/카카오/네이버/구글) 데이터 받음
@@ -98,14 +102,21 @@ public class AuthController {
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
-    /*
-         Front에서 email(이메일), password(변경 할 비밀번호), socialType(로그인 타입) 데이터 받음
-    */
-    @PostMapping("/login")
-    public ResponseEntity<Object> login(@Valid @RequestBody LoginRequest loginRequest) {
+    @PostMapping("/token/logout")
+    public ResponseEntity<Object> logout(@RequestBody HashMap<String,String> accessToken) {
 
-        log.info("email:{}", loginRequest.getEmail());
-
+        jwtService.removeRefreshToken(accessToken.get("accessToken"));
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    }
+
+    @PostMapping("/token/refresh")
+    public ResponseEntity<Object> refresh(HttpServletRequest request, @RequestBody(required = false) ReIssueRequest reIssueRequest) {
+
+        String refreshToken = authService.validateCookie(request);
+        String token = authService.validateToken(refreshToken, reIssueRequest.getSocialId());
+        Map<String, String> accessToken = new HashMap<>();
+        accessToken.put("accessToken", token);
+
+        return ResponseEntity.ok(accessToken);
     }
 }
