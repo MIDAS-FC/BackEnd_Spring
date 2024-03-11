@@ -30,10 +30,12 @@ public class User {
 
     private String socialType; // KAKAO, NAVER, GOOGLE
 
-    @Column(name = "social_id",unique = true)
+    @Column(unique = true)
     private String socialId; // 로그인한 소셜 타입의 식별자 값
 
-    private String refreshToken; // 리프레시 토큰
+    @OneToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+    private Token token;
+
 
     public void authorizeUser() {
         this.role = Role.USER.getKey();
@@ -46,11 +48,8 @@ public class User {
     public void updatePassword(String updatePassword) {
         this.password = updatePassword;
     }
-    public void updateRefreshToken(String updateRefreshToken) {
-        this.refreshToken = updateRefreshToken;
-    }
-    public void updateRole(String role) {this.role = role;}
 
+    public void updateRole(String role) {this.role = role;}
 
     public void updateAll(String email, String pw, String socialId,String url,String socialType) {
         this.email = email;
@@ -58,5 +57,14 @@ public class User {
         this.socialId = socialId;
         this.imageUrl = url;
         this.socialType = socialType;
+    }
+
+    public void assignToken(Token token) {
+        this.token = token;
+        token.setUser(this); // Token 클래스에도 setUser 메서드가 필요합니다.
+    }
+
+    public void setToken(Token token) {
+        this.token = token;
     }
 }
