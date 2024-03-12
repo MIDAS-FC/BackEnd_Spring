@@ -5,10 +5,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import midas.chatly.dto.request.EmailRequest;
-import midas.chatly.dto.request.ResetPasswordRequest;
-import midas.chatly.dto.request.UserRequest;
-import midas.chatly.dto.request.VerifyEmailRequest;
+import midas.chatly.dto.request.*;
 import midas.chatly.jwt.dto.request.ReIssueRequest;
 import midas.chatly.jwt.service.JwtService;
 import midas.chatly.service.AuthService;
@@ -118,5 +115,13 @@ public class AuthController {
         accessToken.put("accessToken", token);
 
         return ResponseEntity.ok(accessToken);
+    }
+
+    @PostMapping("/change-nickname")
+    public ResponseEntity<Object> changeNickName(@RequestBody ValidateNickNameRequest validateNickName) {
+
+        authService.changeNickName(validateNickName);
+
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 }
