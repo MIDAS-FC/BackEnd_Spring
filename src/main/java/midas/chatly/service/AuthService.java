@@ -214,4 +214,22 @@ public class AuthService {
         throw new CustomException(EXIST_USER_NICKNAME);
 
     }
+
+    @Transactional
+    public String updateProfileUrl(MultipartFile multipartFile,String nickName) throws IOException {
+
+        User user = userRepository.findByNickName(nickName).orElseThrow(() -> new CustomException(NO_EXIST_USER_NICKNAME));
+
+        String fileName = multipartFile.getOriginalFilename();
+        ObjectMetadata metadata = new ObjectMetadata();
+        metadata.setContentType(multipartFile.getContentType());
+        metadata.setContentLength(multipartFile.getSize());
+        amazonS3Client.putObject(bucket, fileName, multipartFile.getInputStream(), metadata);
+        String url = amazonS3Client.getUrl(bucket, fileName).toString();
+
+        user.updateProfile(url);
+        userRepository.save(user);
+
+        return url;
+    }
 }
