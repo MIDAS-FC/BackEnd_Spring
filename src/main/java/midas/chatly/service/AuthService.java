@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import midas.chatly.dto.request.EmailRequest;
+import midas.chatly.dto.request.ValidateNickNameRequest;
 import midas.chatly.entity.Token;
 import midas.chatly.error.CustomException;
 import midas.chatly.jwt.service.JwtService;
@@ -28,6 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 
@@ -191,5 +193,25 @@ public class AuthService {
 
         String token = jwtService.validRefreshToken(refreshToken,socialId);
         return token;
+    }
+
+    @Transactional
+    public void changeNickName(ValidateNickNameRequest validateNickNameRequest) {
+        Optional<User> existNickName = userRepository.findByNickName(validateNickNameRequest.getPresentNickName());
+        Optional<User> changeNickName = userRepository.findByNickName(validateNickNameRequest.getChangeNickName());
+
+        if (existNickName.isEmpty()) {
+            throw new CustomException(NO_EXIST_USER_NICKNAME);
+        }
+        if (changeNickName.isEmpty()) {
+            User user = existNickName.get();
+            user.updateNickname(validateNickNameRequest.getChangeNickName());
+            userRepository.save(user);
+
+            return;
+        }
+
+        throw new CustomException(EXIST_USER_NICKNAME);
+
     }
 }
