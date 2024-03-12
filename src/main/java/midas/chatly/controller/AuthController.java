@@ -124,4 +124,14 @@ public class AuthController {
 
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
+
+    @PostMapping("/change-profile")
+    public ResponseEntity<Object> changeProfile(@RequestPart(value = "nickName") Map<String,String> nickName, @RequestPart(value = "file") MultipartFile multipartFile) throws IOException {
+
+        String updateProfileUrl = authService.updateProfileUrl(multipartFile, nickName.get("nickName"));
+        Map<String, String> profile = new HashMap<>();
+        profile.put("url", updateProfileUrl);
+
+        return ResponseEntity.ok(profile);
+    }
 }
