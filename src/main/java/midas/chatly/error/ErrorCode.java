@@ -27,8 +27,8 @@ public enum ErrorCode {
     NO_AUTHENTICATION_INFO(HttpStatus.BAD_REQUEST,"사용자 정보가 없습니다."),
     NO_EXIST_USER_TOKEN(HttpStatus.NOT_FOUND,"TOKEN DB와 매핑 할 수 없습니다"),
     NO_EXIST_USER_REFRESHTOKEN(HttpStatus.NOT_FOUND, "refreshToken이 없습니다."),
+    NO_EXIST_USER_NICKNAME(HttpStatus.NOT_FOUND, "닉네임이 존재하지않습니다.")
     ;
-
 
     private final HttpStatus httpStatus;
     private final String message;
