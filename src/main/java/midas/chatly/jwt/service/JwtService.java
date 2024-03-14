@@ -143,6 +143,7 @@ public class JwtService {
     public Cookie createCookie(String key, String value) {
 
         Cookie cookie = new Cookie(key, value);
+        cookie.setPath("/auth/token");
         cookie.setMaxAge(60 * 60 * 24 * 14);
         cookie.setHttpOnly(true);
 
