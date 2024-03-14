@@ -3,29 +3,27 @@ package midas.chatly.service;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import jakarta.mail.MessagingException;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import midas.chatly.dto.request.EmailRequest;
-import midas.chatly.dto.request.ValidateNickNameRequest;
-import midas.chatly.entity.Token;
-import midas.chatly.error.CustomException;
-import midas.chatly.jwt.service.JwtService;
-import midas.chatly.repository.TokenRepository;
-import midas.chatly.util.EmailUtil;
-import midas.chatly.dto.request.ResetPasswordRequest;
 import midas.chatly.dto.Role;
+import midas.chatly.dto.request.EmailRequest;
+import midas.chatly.dto.request.ResetPasswordRequest;
+import midas.chatly.dto.request.ValidateNickNameRequest;
 import midas.chatly.dto.request.VerifyEmailRequest;
 import midas.chatly.dto.response.VerifyEmailResonse;
+import midas.chatly.entity.Token;
 import midas.chatly.entity.User;
+import midas.chatly.error.CustomException;
+import midas.chatly.jwt.dto.response.TokenResponse;
+import midas.chatly.jwt.service.JwtService;
+import midas.chatly.repository.TokenRepository;
 import midas.chatly.repository.UserRepository;
+import midas.chatly.util.EmailUtil;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -81,7 +79,7 @@ public class AuthService {
             throw new CustomException(EXIST_USER_EMAIL_SOCIALTYPE);
         }
         else if (!userRepository.existsByEmailAndSocialType(emailRequest.getEmail(),emailRequest.getSocialType()) && emailRequest.getEmailType().equals("reset-password")) {
-            throw new CustomException(NO_EXIST_USER_EMAIL_SOCIALTYPE);
+            throw new CustomException(NOT_EXIST_USER_EMAIL_SOCIALTYPE);
         }
     }
 
@@ -108,7 +106,7 @@ public class AuthService {
         }
         else if (!userRepository.existsByEmailAndSocialType(verifyEmailRequest.getEmail(), verifyEmailRequest.getSocialType())
                 && verifyEmailRequest.getEmailType().equals("reset-password")) {
-            throw new CustomException(NO_EXIST_USER_EMAIL);
+            throw new CustomException(NOT_EXIST_USER_EMAIL);
         }
         if (!verifyEmailRequest.getRandomNum().equals(verifyEmailRequest.getInputNum())) {
             throw new CustomException(WRONG_CERTIFICATION_NUMBER);
@@ -128,10 +126,7 @@ public class AuthService {
 
         User user = userRepository.findByNickName(nickName).orElseThrow(()->new CustomException(EXIST_USER_NICKNAME));
         user.updateAll(email, password, socialId,url,CHATLY.getKey());
-        Token token = new Token();
         userRepository.saveAndFlush(user);
-        user.assignToken(token);
-        tokenRepository.saveAndFlush(token);
     }
 
     private String createProfileUrl(MultipartFile multipartFile) throws IOException {
@@ -157,42 +152,35 @@ public class AuthService {
         }
 
         if (!resetPasswordRequest.getSocialType().equals(CHATLY.getKey())) {
-            throw new CustomException(NO_CHATLY_SOCIALTYPE);
+            throw new CustomException(NOT_CHATLY_SOCIALTYPE);
         }
 
         userRepository.findBySocialTypeAndEmail(resetPasswordRequest.getSocialType(),resetPasswordRequest.getEmail())
                 .ifPresentOrElse(user -> {
                     user.updatePassword(passwordEncoder.encode(resetPasswordRequest.getPassword()));
                     userRepository.save(user);
-                },() -> new CustomException(NO_EXIST_USER_EMAIL_SOCIALTYPE));
+                },() -> new CustomException(NOT_EXIST_USER_EMAIL_SOCIALTYPE));
     }
 
-    public String validateCookie(HttpServletRequest request) {
 
-        String refreshToken = null;
+    public TokenResponse validateToken(String refreshToken, String accessTokenSocialId) {
 
-        // 쿠키에서 refreshToken 찾기
-        if (request.getCookies() != null) {
-            for (Cookie cookie : request.getCookies()) {
-                if (cookie.getName().equals("Authorization-Refresh")) {
-                    refreshToken = cookie.getValue();
-                    break;
-                }
-            }
+        if (!jwtService.isTokenValid(refreshToken)) {
+            throw new CustomException(NOT_VALID_REFRESHTOKEN);
         }
 
-        if (refreshToken != null) {
-            return refreshToken;
-        } else {
-            throw new CustomException(NO_EXIST_USER_REFRESHTOKEN);
+        if (tokenRepository.existsByRefreshToken(refreshToken)) {
+            throw new CustomException(EXIST_REFRESHTOKEN_BLACKLIST);
         }
 
-    }
+        String newAccessToken = jwtService.generateAccessToken(accessTokenSocialId);
+        String newRefreshToken = jwtService.generateRefreshToken(accessTokenSocialId);
 
-    public String validateToken(String refreshToken, String socialId) {
-
-        String token = jwtService.validRefreshToken(refreshToken,socialId);
-        return token;
+        TokenResponse tokenResponse=TokenResponse.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(newRefreshToken)
+                .build();
+        return tokenResponse;
     }
 
     @Transactional
@@ -201,7 +189,7 @@ public class AuthService {
         Optional<User> changeNickName = userRepository.findByNickName(validateNickNameRequest.getChangeNickName());
 
         if (existNickName.isEmpty()) {
-            throw new CustomException(NO_EXIST_USER_NICKNAME);
+            throw new CustomException(NOT_EXIST_USER_NICKNAME);
         }
         if (changeNickName.isEmpty()) {
             User user = existNickName.get();
@@ -216,9 +204,36 @@ public class AuthService {
     }
 
     @Transactional
+    public void logout(String refreshToken, String socialId) {
+
+        User user = userRepository.findBySocialId(socialId).orElseThrow(() -> new CustomException(NOT_EXIST_USER_SOCIALID));
+        Token token = new Token();
+
+        user.assignToken(token);
+
+        if (!jwtService.isTokenValid(refreshToken)) {
+            throw new CustomException(NOT_VALID_REFRESHTOKEN);
+        }
+
+        String tokenSocialId = jwtService.extractSocialId(refreshToken).get();
+
+        if (!tokenSocialId.equals(socialId)) {
+            throw new CustomException(NOT_EQUAL_EACH_TOKEN_SOCIALID);
+        }
+
+        if (tokenRepository.existsByRefreshToken(refreshToken)) {
+            throw new CustomException(EXIST_REFRESHTOKEN_BLACKLIST);
+        }
+
+        token.updateTokens(refreshToken);
+
+        tokenRepository.saveAndFlush(token);
+    }
+
+    @Transactional
     public String updateProfileUrl(MultipartFile multipartFile,String nickName) throws IOException {
 
-        User user = userRepository.findByNickName(nickName).orElseThrow(() -> new CustomException(NO_EXIST_USER_NICKNAME));
+        User user = userRepository.findByNickName(nickName).orElseThrow(() -> new CustomException(NOT_EXIST_USER_NICKNAME));
 
         String fileName = multipartFile.getOriginalFilename();
         ObjectMetadata metadata = new ObjectMetadata();
