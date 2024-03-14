@@ -19,19 +19,12 @@ public class Token {
     @Column(name = "token_id")
     private Long id;
 
-    private String accessToken;
-
     private String refreshToken;
 
     @OneToOne
     @JoinColumn(name = "social_id", referencedColumnName = "socialId")
     private User user;
-    public void updateAccessToken(String accessToken) {
-        this.accessToken = accessToken;
-    }
-
-    public void updateTokens(String updateAccessToken, String updateRefreshToken) {
-        this.accessToken = updateAccessToken;
+    public void updateTokens(String updateRefreshToken) {
         this.refreshToken = updateRefreshToken;
     }
 
