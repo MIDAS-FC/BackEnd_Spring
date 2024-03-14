@@ -4,23 +4,19 @@ package midas.chatly.jwt.service;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import midas.chatly.entity.Token;
-import midas.chatly.entity.User;
-import midas.chatly.error.CustomException;
 import midas.chatly.repository.TokenRepository;
 import midas.chatly.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.security.Key;
 import java.util.Date;
 import java.util.Optional;
-
-import static midas.chatly.error.ErrorCode.*;
 
 @Service
 @Getter
@@ -122,58 +118,35 @@ public class JwtService {
         return false;
     }
 
-    @Transactional
-    public void updateTokens(String socialId, String accessToken, String refreshToken) {
-        userRepository.findBySocialId(socialId)
-                .ifPresentOrElse(
-                        user -> {
-                            Token token = user.getToken(); // User로부터 Token을 가져옵니다.
-                            if (token != null) {
-                                token.updateTokens(accessToken, refreshToken);
-                                tokenRepository.saveAndFlush(token); // Token 엔터티에 변경 사항을 저장합니다.
-                            } else {
-                                throw new CustomException(NO_EXIST_USER_TOKEN); // Token이 없는 경우 예외 처리
-                            }
-                        },
-                        () -> { throw new CustomException(NO_EXIST_USER_SOCIALID); } // User가 없는 경우 예외 처리
-                );
+    public Optional<String> extractSocialId(String token) {
+        try {
+            // 토큰 유효성 검사하는 데에 사용할 알고리즘이 있는 JWT verifier builder 반환
+            return Optional.ofNullable(Jwts.parser()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody()
+                    .get(SOCIAL_ID, String.class)
+            );
+        } catch (Exception e) {
+            log.error("액세스 토큰이 유효하지 않습니다.");
+            return Optional.empty();
+        }
     }
 
+    public void setTokens(HttpServletResponse response, String accessToken, String refreshToken) {
 
-    @Transactional
-    public void removeRefreshToken(String accessToken) {
-        Token tokenInfo = tokenRepository.findByAccessToken(accessToken)
-                .orElseThrow(() -> new CustomException(NO_EXIST_USER_ACCESSTOKEN));
-        User user = tokenInfo.getUser();
-
-        // First, remove the association between User and Token
-        if (user != null) {
-            user.setToken(null);
-            userRepository.saveAndFlush(user); // Update and flush immediately to avoid foreign key constraint violation
-        }
-
-        // Now that User entity is updated, it's safe to delete the Token
-        tokenRepository.delete(tokenInfo);
+        response.setHeader(accessHeader, accessToken);
+        response.addCookie(createCookie(refreshHeader, refreshToken));
     }
 
-    public String validRefreshToken(String token,String socialId) {
+    public Cookie createCookie(String key, String value) {
 
-        Optional<Token> refreshToken = tokenRepository.findByRefreshToken(token);
+        Cookie cookie = new Cookie(key, value);
+        cookie.setMaxAge(60 * 60 * 24 * 14);
+        cookie.setHttpOnly(true);
 
-        if (!refreshToken.isPresent()) {
-            throw new CustomException(NO_EXIST_USER_REFRESHTOKEN);
-        }
-
-        if (!isTokenValid(refreshToken.get().getRefreshToken())) {
-            throw new CustomException(NO_VALID_ACCESSTOKEN);
-        }
-
-
-        String newAccessToken = generateAccessToken(socialId);
-        refreshToken.get().updateAccessToken(newAccessToken);
-        tokenRepository.saveAndFlush(refreshToken.get());
-
-        return newAccessToken;
+        return cookie;
     }
 }
 
