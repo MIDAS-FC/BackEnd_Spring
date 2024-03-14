@@ -53,7 +53,7 @@ public class JwtAuthenticationProcessingFilter extends OncePerRequestFilter {
         }
 
         if (accessToken == null) {
-            throw new CustomException(NO_VALID_ACCESSTOKEN);
+            throw new CustomException(NOT_VALID_ACCESSTOKEN);
         }
     }
 
@@ -68,12 +68,12 @@ public class JwtAuthenticationProcessingFilter extends OncePerRequestFilter {
                                                 // Email 추출 성공 시f
                                                 userRepository.findByEmail(email)
                                                         .ifPresentOrElse(this::saveAuthentication,
-                                                                () -> new CustomException(NO_EXIST_USER_EMAIL)
+                                                                () -> new CustomException(NOT_EXIST_USER_EMAIL)
                                                         );
                                             },
-                                            () -> new CustomException(NO_EXTRACT_EMAIL)
+                                            () -> new CustomException(NOT_EXTRACT_EMAIL)
                                     );
-                        }, () -> new CustomException(NO_EXTRACT_ACCESSTOKEN)
+                        }, () -> new CustomException(NOT_EXTRACT_ACCESSTOKEN)
                 );
 
         filterChain.doFilter(request, response);

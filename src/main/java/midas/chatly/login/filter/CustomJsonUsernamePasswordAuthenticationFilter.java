@@ -7,7 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import midas.chatly.entity.User;
 import midas.chatly.error.CustomException;
 import midas.chatly.repository.UserRepository;
-import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -15,12 +14,12 @@ import org.springframework.security.web.authentication.AbstractAuthenticationPro
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.util.StreamUtils;
 
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
-import static midas.chatly.error.ErrorCode.NO_EQUAL_JSON;
+import static midas.chatly.error.ErrorCode.NOT_EQUAL_JSON;
+
 
 @Slf4j
 public class CustomJsonUsernamePasswordAuthenticationFilter extends AbstractAuthenticationProcessingFilter {
@@ -46,7 +45,7 @@ public class CustomJsonUsernamePasswordAuthenticationFilter extends AbstractAuth
     @Override
     public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response) throws AuthenticationException, IOException {
         if(request.getContentType() == null || !request.getContentType().equals(CONTENT_TYPE)  ) {
-            throw new CustomException(NO_EQUAL_JSON);
+            throw new CustomException(NOT_EQUAL_JSON);
         }
 
         String messageBody = StreamUtils.copyToString(request.getInputStream(), StandardCharsets.UTF_8);

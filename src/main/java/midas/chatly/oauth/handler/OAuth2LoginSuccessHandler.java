@@ -25,7 +25,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-import static midas.chatly.error.ErrorCode.NO_EXIST_USER_SOCIALID;
+import static midas.chatly.error.ErrorCode.NOT_EXIST_USER_SOCIALID;
+
 
 @Slf4j
 @Component
@@ -34,7 +35,6 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
-    private final TokenRepository tokenRepository;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
@@ -43,29 +43,22 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
             CustomOAuth2User oAuth2User = (CustomOAuth2User) authentication.getPrincipal();
 
             if(oAuth2User.getRole() == Role.GUEST.getKey()) {
-                User user = userRepository.findBySocialId(oAuth2User.getSocialId()).orElseThrow(() -> new CustomException(NO_EXIST_USER_SOCIALID));
-                Token token = user.getToken();
-                if (token == null) {
-                    token = new Token();
-                    user.assignToken(token);
-                }
-
-                userRepository.saveAndFlush(user);
+                User user = userRepository.findBySocialId(oAuth2User.getSocialId()).orElseThrow(() -> new CustomException(NOT_EXIST_USER_SOCIALID));
                 String accessToken = jwtService.generateAccessToken(oAuth2User.getSocialId());
                 String refreshToken = jwtService.generateRefreshToken(oAuth2User.getSocialId());
-                token.updateTokens(accessToken, refreshToken);
-                tokenRepository.saveAndFlush(token);
+
                 String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:3000/main")
                         .queryParam("email",oAuth2User.getEmail())
                         .queryParam("socialType",oAuth2User.getSocialType())
-                        .queryParam("socialId",oAuth2User.getSocialId())
+                        .queryParam("url",user.getImageUrl())
+                        .queryParam("nickName",user.getNickName())
                         .queryParam("accessToken", accessToken)
                         .build()
                         .encode(StandardCharsets.UTF_8)
                         .toUriString();
 
                 response.setHeader("Authorization-Access", accessToken);
-                response.addCookie(createCookie("Authorization-Refresh", refreshToken));
+                response.addCookie(jwtService.createCookie("Authorization-Refresh", refreshToken));
                 response.setStatus(HttpStatus.OK.value());
                 response.sendRedirect(targetUrl);
 
@@ -83,7 +76,6 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
         String accessToken = jwtService.generateAccessToken(oAuth2User.getSocialId());
         String refreshToken = jwtService.generateRefreshToken(oAuth2User.getSocialId());
-        jwtService.updateTokens(oAuth2User.getSocialId(), accessToken, refreshToken);
 
         String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:3000/main")
                 .queryParam("email",oAuth2User.getEmail())
@@ -95,19 +87,10 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
                 .toUriString();
 
         response.setHeader("Authorization-Access", accessToken);
-        response.addCookie(createCookie("Authorization-Refresh", refreshToken));
+        response.addCookie(jwtService.createCookie("Authorization-Refresh", refreshToken));
         response.setStatus(HttpStatus.OK.value());
         response.sendRedirect(targetUrl);
 
 
-    }
-
-    private Cookie createCookie(String key, String value) {
-
-        Cookie cookie = new Cookie(key, value);
-        cookie.setMaxAge(1000 * 60 * 60 * 24 * 14);
-        cookie.setHttpOnly(true);
-
-        return cookie;
     }
 }
