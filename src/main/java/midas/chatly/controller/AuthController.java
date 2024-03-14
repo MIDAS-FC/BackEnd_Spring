@@ -1,12 +1,13 @@
 package midas.chatly.controller;
 
 import jakarta.mail.MessagingException;
-import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import midas.chatly.dto.request.*;
-import midas.chatly.jwt.dto.request.ReIssueRequest;
+import midas.chatly.jwt.dto.request.SocialIdRequest;
+import midas.chatly.jwt.dto.response.TokenResponse;
 import midas.chatly.jwt.service.JwtService;
 import midas.chatly.service.AuthService;
 import org.springframework.http.HttpStatus;
@@ -60,9 +61,9 @@ public class AuthController {
         Front에서 nickName(닉네임) 데이터 받음
      */
     @PostMapping("/verify-nickname")
-    public ResponseEntity<Object> verifyNickName(@RequestBody HashMap<String, String> nickName) {
+    public ResponseEntity<Object> verifyNickName(@RequestBody NickNameRequest nickNameRequest) {
 
-        authService.verifyNickName(nickName.get("nickName"));
+        authService.verifyNickName(nickNameRequest.getNickName());
 
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
@@ -100,35 +101,34 @@ public class AuthController {
     }
 
     @PostMapping("/token/logout")
-    public ResponseEntity<Object> logout(@RequestBody HashMap<String,String> accessToken) {
+    public ResponseEntity<Object> logout(@CookieValue(name = "Authorization-Refresh") String refreshToken, @RequestBody SocialIdRequest socialIdRequest) {
 
-        jwtService.removeRefreshToken(accessToken.get("accessToken"));
+        authService.logout(refreshToken, socialIdRequest.getSocialId());
+
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
-    @PostMapping("/token/refresh")
-    public ResponseEntity<Object> refresh(HttpServletRequest request, @RequestBody(required = false) ReIssueRequest reIssueRequest) {
+    @PostMapping("/token/reissue")
+    public ResponseEntity<Object> refresh(@CookieValue(name = "Authorization-Refresh") String refreshToken, @RequestBody SocialIdRequest socialIdRequest, HttpServletResponse response) {
 
-        String refreshToken = authService.validateCookie(request);
-        String token = authService.validateToken(refreshToken, reIssueRequest.getSocialId());
-        Map<String, String> accessToken = new HashMap<>();
-        accessToken.put("accessToken", token);
+        TokenResponse tokenResponse = authService.validateToken(refreshToken, socialIdRequest.getSocialId());
+        jwtService.setTokens(response,tokenResponse.getAccessToken(),tokenResponse.getRefreshToken());
 
-        return ResponseEntity.ok(accessToken);
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @PostMapping("/change-nickname")
-    public ResponseEntity<Object> changeNickName(@RequestBody ValidateNickNameRequest validateNickName) {
+    public ResponseEntity<Object> changeNickName(@RequestBody ValidateNickNameRequest validateNickNameRequest) {
 
-        authService.changeNickName(validateNickName);
+        authService.changeNickName(validateNickNameRequest);
 
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
     @PostMapping("/change-profile")
-    public ResponseEntity<Object> changeProfile(@RequestPart(value = "nickName") Map<String,String> nickName, @RequestPart(value = "file") MultipartFile multipartFile) throws IOException {
+    public ResponseEntity<Object> changeProfile(@RequestPart(value = "nickName") NickNameRequest nickNameRequest, @RequestPart(value = "file") MultipartFile multipartFile) throws IOException {
 
-        String updateProfileUrl = authService.updateProfileUrl(multipartFile, nickName.get("nickName"));
+        String updateProfileUrl = authService.updateProfileUrl(multipartFile, nickNameRequest.getNickName());
         Map<String, String> profile = new HashMap<>();
         profile.put("url", updateProfileUrl);
 
