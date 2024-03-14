@@ -64,8 +64,4 @@ public class User {
         this.token = token;
         token.setUser(this); // Token 클래스에도 setUser 메서드가 필요합니다.
     }
-
-    public void setToken(Token token) {
-        this.token = token;
-    }
 }
