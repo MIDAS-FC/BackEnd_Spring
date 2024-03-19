@@ -1,16 +1,17 @@
-package midas.chatly.jwt.dto.request;
+package midas.chatly.dto.response;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Getter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ReIssueRequest {
+public class ModifyAttributeResponse {
 
     private String email;
-    private String socialType;
-    private String socialId;
-    private String refreshToken;
+    private String nickName;
+
 }
