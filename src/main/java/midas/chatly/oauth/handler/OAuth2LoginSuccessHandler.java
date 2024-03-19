@@ -58,8 +58,8 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
                         .encode(StandardCharsets.UTF_8)
                         .toUriString();
 
-                response.setHeader("Authorization-Access", accessToken);
-                response.setHeader("Authorization-Refresh", refreshToken);
+                response.setHeader("Authorization-Access", "Bearer" + accessToken);
+                response.setHeader("Authorization-Refresh", "Bearer" + refreshToken);
                 response.setStatus(HttpStatus.OK.value());
                 response.sendRedirect(targetUrl);
 

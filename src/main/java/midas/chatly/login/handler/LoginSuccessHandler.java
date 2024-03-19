@@ -57,8 +57,8 @@ public class LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
         log.info("로그인에 성공하였습니다. AccessToken : {}", accessToken);
         log.info("로그인에 성공하였습니다. RefreshToken : {}", refreshToken);
 
-        response.setHeader("Authorization-Access", accessToken);
-        response.setHeader("Authorization-Refresh", refreshToken);
+        response.setHeader("Authorization-Access", "Bearer " + accessToken);
+        response.setHeader("Authorization-Refresh", "Bearer " + refreshToken);
         response.setHeader("socialId", socialId);
         response.setStatus(HttpStatus.OK.value());
 
