@@ -13,6 +13,7 @@ import midas.chatly.login.service.LoginService;
 import midas.chatly.oauth.handler.OAuth2LoginFailureHandler;
 import midas.chatly.oauth.handler.OAuth2LoginSuccessHandler;
 import midas.chatly.oauth.service.CustomOAuth2UserService;
+import midas.chatly.redis.repository.RefreshTokenRepository;
 import midas.chatly.repository.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -38,6 +39,7 @@ public class SecurityConfig {
     private final LoginService loginService;
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
     private final ObjectMapper objectMapper;
     private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
     private final OAuth2LoginFailureHandler oAuth2LoginFailureHandler;
@@ -85,7 +87,7 @@ public class SecurityConfig {
 
     @Bean
     public LoginSuccessHandler loginSuccessHandler() {
-        return new LoginSuccessHandler(jwtService, userRepository);
+        return new LoginSuccessHandler(jwtService, userRepository,refreshTokenRepository);
     }
 
     @Bean
