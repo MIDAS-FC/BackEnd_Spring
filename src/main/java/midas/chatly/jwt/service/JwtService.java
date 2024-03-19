@@ -4,12 +4,10 @@ package midas.chatly.jwt.service;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import midas.chatly.repository.TokenRepository;
 import midas.chatly.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -28,7 +26,6 @@ public class JwtService {
     private static final String EMAIL_CLAIM = "email";
     private static final String SOCIAL_TYPE = "socialType";
     private static final String SOCIAL_ID = "socialId";
-    private static final String BEARER = "Bearer ";
     private static final long ACCESS_TOKEN_EXPIRE_TIME = 1000 * 60 * 60 * 2;            // 유효기간 2시간
     private static final long REFRESH_TOKEN_EXPIRE_TIME = 1000 * 60 * 60 * 24 * 14;  // 유효기간 14일
 
@@ -37,20 +34,17 @@ public class JwtService {
     private String refreshHeader;
     private final Key key;
     private final UserRepository userRepository;
-    private final TokenRepository tokenRepository;
 
     public JwtService(@Value("${jwt.secret-key}") String secretKey,
                       @Value("${jwt.access-header}") String accessHeader,
                       @Value("${jwt.refresh-header}") String refreshHeader,
-                      UserRepository userRepository,
-                      TokenRepository tokenRepository) {
+                      UserRepository userRepository) {
         this.secretKey = secretKey;
         this.accessHeader = accessHeader;
         this.refreshHeader = refreshHeader;
         byte[] keyBytes = Decoders.BASE64.decode(secretKey);
         this.key = Keys.hmacShaKeyFor(keyBytes);
         this.userRepository = userRepository;
-        this.tokenRepository = tokenRepository;
     }
     public String generateAccessToken(String socialId) {
 
@@ -81,9 +75,11 @@ public class JwtService {
     }
 
     public Optional<String> extractAccessToken(HttpServletRequest request) {
-        return Optional.ofNullable(request.getHeader(accessHeader))
-                .filter(refreshToken -> refreshToken.startsWith(BEARER))
-                .map(refreshToken -> refreshToken.replace(BEARER, ""));
+        return Optional.ofNullable(request.getHeader(accessHeader));
+    }
+
+    public Optional<String> extractRefreshToken(HttpServletRequest request) {
+        return Optional.ofNullable(request.getHeader(refreshHeader));
     }
 
     public Optional<String> extractEmail(String accessToken) {
@@ -101,6 +97,17 @@ public class JwtService {
             return Optional.empty();
         }
     }
+
+    public Long extractTime(String accessToken) {
+        return Jwts.parser()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(accessToken)
+                .getBody()
+                .getExpiration()
+                .getTime();
+    }
+
 
     public boolean isTokenValid(String token) { //토큰 검증
         try {
@@ -137,17 +144,8 @@ public class JwtService {
     public void setTokens(HttpServletResponse response, String accessToken, String refreshToken) {
 
         response.setHeader(accessHeader, accessToken);
-        response.addCookie(createCookie(refreshHeader, refreshToken));
+        response.setHeader(refreshHeader, refreshToken);
     }
 
-    public Cookie createCookie(String key, String value) {
-
-        Cookie cookie = new Cookie(key, value);
-        cookie.setPath("/auth/token");
-        cookie.setMaxAge(60 * 60 * 24 * 14);
-        cookie.setHttpOnly(true);
-
-        return cookie;
-    }
 }
 

@@ -2,7 +2,6 @@ package midas.chatly.service;
 
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.ObjectMetadata;
-import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import midas.chatly.dto.Role;
@@ -10,13 +9,17 @@ import midas.chatly.dto.request.EmailRequest;
 import midas.chatly.dto.request.ResetPasswordRequest;
 import midas.chatly.dto.request.ValidateNickNameRequest;
 import midas.chatly.dto.request.VerifyEmailRequest;
-import midas.chatly.dto.response.VerifyEmailResonse;
-import midas.chatly.entity.Token;
+import midas.chatly.dto.response.ModifyAttributeResponse;
 import midas.chatly.entity.User;
 import midas.chatly.error.CustomException;
 import midas.chatly.jwt.dto.response.TokenResponse;
 import midas.chatly.jwt.service.JwtService;
-import midas.chatly.repository.TokenRepository;
+import midas.chatly.redis.entity.BlackList;
+import midas.chatly.redis.entity.EmailAuthentication;
+import midas.chatly.redis.entity.RefreshToken;
+import midas.chatly.redis.repository.BlackListRepository;
+import midas.chatly.redis.repository.EmailAuthenticationRepository;
+import midas.chatly.redis.repository.RefreshTokenRepository;
 import midas.chatly.repository.UserRepository;
 import midas.chatly.util.EmailUtil;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,7 +29,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
@@ -41,7 +46,9 @@ import static midas.chatly.oauth.dto.SocialType.CHATLY;
 public class AuthService {
 
     private final UserRepository userRepository;
-    private final TokenRepository tokenRepository;
+    private final BlackListRepository blackListRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final EmailAuthenticationRepository emailAuthenticationRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailUtil emailUtil;
     private final AmazonS3Client amazonS3Client;
@@ -53,25 +60,19 @@ public class AuthService {
     @Value("default.profile")
     private String defaultProfile;
 
-    public VerifyEmailResonse sendEmail(EmailRequest emailRequest) throws MessagingException {
+    public void sendEmail(EmailRequest emailRequest) {
 
         validateEmail(emailRequest);
 
         String randomNum = String.valueOf((new Random().nextInt(9000) + 1000));
-        LocalDateTime createTime = LocalDateTime.now();
-        LocalDateTime expireTime = LocalDateTime.now().plusMinutes(10);
+        long expireTime = LocalDateTime.now().plusMinutes(10)
+                .atZone(ZoneId.systemDefault())
+                .toEpochSecond();
 
         emailUtil.sendEmail(emailRequest.getEmail(), randomNum);
 
-        VerifyEmailResonse verifyEmailResonse = VerifyEmailResonse.
-                builder()
-                .randomNum(randomNum)
-                .createTime(createTime)
-                .expireTime(expireTime)
-                .build();
-
-        return verifyEmailResonse;
-
+        String id = emailRequest.getEmail() + "_" + emailRequest.getEmailType() + "_" + emailRequest.getSocialType();
+        emailAuthenticationRepository.save(new EmailAuthentication(id, randomNum, expireTime));
     }
 
     private void validateEmail(EmailRequest emailRequest) {
@@ -99,6 +100,7 @@ public class AuthService {
 
 
     public void verifyEmail(VerifyEmailRequest verifyEmailRequest) {
+        String id = verifyEmailRequest.getEmail() + "_" + verifyEmailRequest.getEmailType() + "_" + verifyEmailRequest.getSocialType();
 
         if (userRepository.existsByEmailAndSocialType(verifyEmailRequest.getEmail(), verifyEmailRequest.getSocialType())
                 && verifyEmailRequest.getEmailType().equals("sign-up")) {
@@ -108,10 +110,12 @@ public class AuthService {
                 && verifyEmailRequest.getEmailType().equals("reset-password")) {
             throw new CustomException(NOT_EXIST_USER_EMAIL);
         }
-        if (!verifyEmailRequest.getRandomNum().equals(verifyEmailRequest.getInputNum())) {
+        EmailAuthentication emailAuthentication = emailAuthenticationRepository.findById(id).orElseThrow(() -> new CustomException(NOT_EXIST_USER_EMAIL));
+        if (!emailAuthentication.getRandomNum()
+                .equals(verifyEmailRequest.getInputNum())) {
             throw new CustomException(WRONG_CERTIFICATION_NUMBER);
         }
-        if (verifyEmailRequest.getSendTime().isAfter(verifyEmailRequest.getExpireTime())) {
+        if (emailAuthentication.getExp()< Instant.now().getEpochSecond()) {
             throw new CustomException(EXPIRE_CERTIFICATION_NUMBER);
         }
     }
@@ -169,17 +173,23 @@ public class AuthService {
             throw new CustomException(NOT_VALID_REFRESHTOKEN);
         }
 
-        if (tokenRepository.existsByRefreshToken(refreshToken)) {
+        if (blackListRepository.existsByAccessToken(refreshToken)) {
             throw new CustomException(EXIST_REFRESHTOKEN_BLACKLIST);
         }
 
         String newAccessToken = jwtService.generateAccessToken(accessTokenSocialId);
         String newRefreshToken = jwtService.generateRefreshToken(accessTokenSocialId);
 
+        RefreshToken token = refreshTokenRepository.findByRefreshToken(refreshToken).orElseThrow(() -> new CustomException(NOT_EXIST_REFRESHTOKEN));
+        token.updateRefreshToken(newRefreshToken);
+
+        refreshTokenRepository.save(token);
+
         TokenResponse tokenResponse=TokenResponse.builder()
                 .accessToken(newAccessToken)
                 .refreshToken(newRefreshToken)
                 .build();
+
         return tokenResponse;
     }
 
@@ -204,30 +214,31 @@ public class AuthService {
     }
 
     @Transactional
-    public void logout(String refreshToken, String socialId) {
+    public void logout(String accessToken, String refreshToken, String socialId) {
 
-        User user = userRepository.findBySocialId(socialId).orElseThrow(() -> new CustomException(NOT_EXIST_USER_SOCIALID));
-        Token token = new Token();
+        userRepository.findBySocialId(socialId).orElseThrow(() -> new CustomException(NOT_EXIST_USER_SOCIALID));
 
-        user.assignToken(token);
 
-        if (!jwtService.isTokenValid(refreshToken)) {
-            throw new CustomException(NOT_VALID_REFRESHTOKEN);
+        if (!jwtService.isTokenValid(accessToken)) {
+            throw new CustomException(NOT_VALID_ACCESSTOKEN);
         }
 
-        String tokenSocialId = jwtService.extractSocialId(refreshToken).get();
+        String tokenSocialId = jwtService.extractSocialId(accessToken).get();
 
         if (!tokenSocialId.equals(socialId)) {
             throw new CustomException(NOT_EQUAL_EACH_TOKEN_SOCIALID);
         }
 
-        if (tokenRepository.existsByRefreshToken(refreshToken)) {
+        if (blackListRepository.existsByAccessToken(accessToken)) {
             throw new CustomException(EXIST_REFRESHTOKEN_BLACKLIST);
         }
 
-        token.updateTokens(refreshToken);
+        RefreshToken token = refreshTokenRepository.findByRefreshToken(refreshToken).orElseThrow(() -> new CustomException(NOT_EXIST_REFRESHTOKEN));
 
-        tokenRepository.saveAndFlush(token);
+        refreshTokenRepository.delete(token);
+        Long leftTime = System.currentTimeMillis() - jwtService.extractTime(accessToken);
+        blackListRepository.save(new BlackList(socialId, accessToken, leftTime));
+
     }
 
     @Transactional
@@ -246,5 +257,18 @@ public class AuthService {
         userRepository.save(user);
 
         return url;
+    }
+
+    public ModifyAttributeResponse getEmailNickName(String socialId) {
+
+        User user = userRepository.findBySocialId(socialId).orElseThrow(() -> new CustomException(NOT_EXIST_USER_SOCIALID));
+
+        ModifyAttributeResponse modifyAttributeResponse=ModifyAttributeResponse
+                .builder()
+                .email(user.getEmail())
+                .nickName(user.getNickName())
+                .build();
+
+        return modifyAttributeResponse;
     }
 }
