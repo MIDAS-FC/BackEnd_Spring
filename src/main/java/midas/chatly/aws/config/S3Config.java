@@ -1,4 +1,4 @@
-package midas.chatly.config;
+package midas.chatly.aws.config;
 
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
