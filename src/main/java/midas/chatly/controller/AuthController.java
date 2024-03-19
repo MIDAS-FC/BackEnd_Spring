@@ -1,6 +1,6 @@
 package midas.chatly.controller;
 
-import jakarta.mail.MessagingException;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -16,8 +16,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
 @Slf4j
 @RequestMapping("/auth")
@@ -28,18 +26,13 @@ public class AuthController {
     private final AuthService authService;
     private final JwtService jwtService;
 
-    /*
-        Front에서 email(이메일), emailType(회원가입 때의 이메일 보내기인지, 비밀번호 재설정 때의 이메일 보내기인지), socialType(자체 서비스/카카오/네이버/구글) 데이터 받음
-     */
     @PostMapping("/send-email")
-    public ResponseEntity<Object> sendEmail(@RequestBody EmailRequest emailRequest) throws MessagingException {
-        return ResponseEntity.ok(authService.sendEmail(emailRequest));
+    public ResponseEntity<Object> sendEmail(@RequestBody EmailRequest emailRequest) {
+        authService.sendEmail(emailRequest);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+
     }
 
-    /*
-        Front에서 email(이메일), emailType(회원가입 때의 이메일 보내기인지, 비밀번호 재설정 때의 이메일 보내기인지), socialType(자체 서비스/카카오/네이버/구글), randomNum(서버에서 발급한 인증번호), inputNum(사용자가 입력한 인증번호),
-                 sendTime(사용자가 입력한 인증번호 시간), expireTime(서버에서 발급한 인증번호 만료시간) 데이터 받음
-     */
     @PostMapping("/verify-email")
     public ResponseEntity<Object> verifyEmail(@RequestBody VerifyEmailRequest verifyEmailRequest) {
 
@@ -47,19 +40,13 @@ public class AuthController {
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
-    /*
-        Front에서 email(이메일) 데이터 받음
-     */
     @PostMapping("/resend-email")
-    public ResponseEntity<Object> reSendEmail(@RequestBody EmailRequest emailRequest) throws MessagingException {
+    public ResponseEntity<Object> reSendEmail(@RequestBody EmailRequest emailRequest) {
 
-        return ResponseEntity.ok(authService.sendEmail(emailRequest));
-
+        authService.sendEmail(emailRequest);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
-    /*
-        Front에서 nickName(닉네임) 데이터 받음
-     */
     @PostMapping("/verify-nickname")
     public ResponseEntity<Object> verifyNickName(@RequestBody NickNameRequest nickNameRequest) {
 
@@ -68,18 +55,6 @@ public class AuthController {
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
-    /*
-        Front에서 form-data형식으로 데이터 받음
-
-        ex) key=file, value=이미지 파일
-
-            key=userRequestDto, value=    {
-
-                                            "email":"*****@naver.com"
-                                            "password":"******"
-                                            "nickName":"******"
-                                           }
-     */
     @PostMapping("/signup")
     public ResponseEntity<Object> signup(@RequestPart(value = "file", required = false) MultipartFile multipartFile,@Valid @RequestPart(value = "userRequestDto") UserRequest userRequest) throws IOException {
 
@@ -88,10 +63,6 @@ public class AuthController {
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
-    /*
-        이미 로그인된 상태이기에 자체 서비스 회원가입해서 만든 계정만 가능
-        Front에서 email(이메일), socialType(로그인 타입), password(변경 할 비밀번호), rePassword(변경 할 비밀번호 재입력) 데이터 받음
-     */
     @PostMapping("/reset-password")
     public ResponseEntity<Object> resetPassword(@Valid @RequestBody ResetPasswordRequest resetPasswordRequest) {
 
@@ -101,37 +72,22 @@ public class AuthController {
     }
 
     @PostMapping("/token/logout")
-    public ResponseEntity<Object> logout(@CookieValue(name = "Authorization-Refresh") String refreshToken, @RequestBody SocialIdRequest socialIdRequest) {
+    public ResponseEntity<Object> logout(HttpServletRequest request, @RequestBody SocialIdRequest socialIdRequest) {
 
-        authService.logout(refreshToken, socialIdRequest.getSocialId());
+        String accessToken = jwtService.extractAccessToken(request).get();
+        String refreshToken = jwtService.extractRefreshToken(request).get();
+        authService.logout(accessToken, refreshToken, socialIdRequest.getSocialId());
 
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
     @PostMapping("/token/reissue")
-    public ResponseEntity<Object> refresh(@CookieValue(name = "Authorization-Refresh") String refreshToken, @RequestBody SocialIdRequest socialIdRequest, HttpServletResponse response) {
+    public ResponseEntity<Object> refresh(HttpServletRequest request, HttpServletResponse response, @RequestBody SocialIdRequest socialIdRequest) {
 
+        String refreshToken = jwtService.extractRefreshToken(request).get();
         TokenResponse tokenResponse = authService.validateToken(refreshToken, socialIdRequest.getSocialId());
-        jwtService.setTokens(response,tokenResponse.getAccessToken(),tokenResponse.getRefreshToken());
+        jwtService.setTokens(response, tokenResponse.getAccessToken(), tokenResponse.getRefreshToken());
 
         return new ResponseEntity<>(HttpStatus.OK);
-    }
-
-    @PostMapping("/change-nickname")
-    public ResponseEntity<Object> changeNickName(@RequestBody ValidateNickNameRequest validateNickNameRequest) {
-
-        authService.changeNickName(validateNickNameRequest);
-
-        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-    }
-
-    @PostMapping("/change-profile")
-    public ResponseEntity<Object> changeProfile(@RequestPart(value = "nickName") NickNameRequest nickNameRequest, @RequestPart(value = "file") MultipartFile multipartFile) throws IOException {
-
-        String updateProfileUrl = authService.updateProfileUrl(multipartFile, nickNameRequest.getNickName());
-        Map<String, String> profile = new HashMap<>();
-        profile.put("url", updateProfileUrl);
-
-        return ResponseEntity.ok(profile);
     }
 }
