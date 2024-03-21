@@ -13,6 +13,7 @@ import midas.chatly.login.service.LoginService;
 import midas.chatly.oauth.handler.OAuth2LoginFailureHandler;
 import midas.chatly.oauth.handler.OAuth2LoginSuccessHandler;
 import midas.chatly.oauth.service.CustomOAuth2UserService;
+import midas.chatly.redis.repository.BlackListRepository;
 import midas.chatly.redis.repository.RefreshTokenRepository;
 import midas.chatly.repository.UserRepository;
 import org.springframework.context.annotation.Bean;
@@ -40,6 +41,7 @@ public class SecurityConfig {
     private final JwtService jwtService;
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final BlackListRepository blackListRepository;
     private final ObjectMapper objectMapper;
     private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
     private final OAuth2LoginFailureHandler oAuth2LoginFailureHandler;
@@ -87,7 +89,7 @@ public class SecurityConfig {
 
     @Bean
     public LoginSuccessHandler loginSuccessHandler() {
-        return new LoginSuccessHandler(jwtService, userRepository,refreshTokenRepository);
+        return new LoginSuccessHandler(jwtService, userRepository, refreshTokenRepository);
     }
 
     @Bean
@@ -107,7 +109,7 @@ public class SecurityConfig {
 
     @Bean
     public Filter jwtAuthenticationProcessingFilter() {
-        JwtAuthenticationProcessingFilter jwtAuthenticationFilter = new JwtAuthenticationProcessingFilter(jwtService, userRepository);
+        JwtAuthenticationProcessingFilter jwtAuthenticationFilter = new JwtAuthenticationProcessingFilter(jwtService, userRepository,blackListRepository);
         return jwtAuthenticationFilter;
     }
 
