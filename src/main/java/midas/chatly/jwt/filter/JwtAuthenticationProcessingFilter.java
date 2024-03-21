@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import midas.chatly.entity.User;
 import midas.chatly.error.CustomException;
 import midas.chatly.jwt.service.JwtService;
+import midas.chatly.redis.entity.BlackList;
+import midas.chatly.redis.repository.BlackListRepository;
 import midas.chatly.repository.UserRepository;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -19,6 +21,7 @@ import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.UUID;
 
 import static midas.chatly.error.ErrorCode.*;
@@ -30,6 +33,7 @@ public class JwtAuthenticationProcessingFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final BlackListRepository blackListRepository;
 
     private GrantedAuthoritiesMapper authoritiesMapper = new NullAuthoritiesMapper();
 
@@ -59,22 +63,23 @@ public class JwtAuthenticationProcessingFilter extends OncePerRequestFilter {
 
     public void checkAccessTokenAndAuthentication(HttpServletRequest request, HttpServletResponse response,
                                                   FilterChain filterChain) throws ServletException, IOException {
-        jwtService.extractAccessToken(request)
+        String accessToken = jwtService.extractAccessToken(request)
                 .filter(jwtService::isTokenValid)
-                .ifPresentOrElse(accessToken -> {
-                            // Token이 유효할 때
-                            jwtService.extractEmail(accessToken)
-                                    .ifPresentOrElse(email -> {
-                                                // Email 추출 성공 시f
-                                                userRepository.findByEmail(email)
-                                                        .ifPresentOrElse(this::saveAuthentication,
-                                                                () -> new CustomException(NOT_EXIST_USER_EMAIL)
-                                                        );
-                                            },
-                                            () -> new CustomException(NOT_EXTRACT_EMAIL)
-                                    );
-                        }, () -> new CustomException(NOT_EXTRACT_ACCESSTOKEN)
-                );
+                .orElseThrow(() -> new CustomException(NOT_EXTRACT_ACCESSTOKEN));
+
+        String socialID = jwtService.extractSocialId(accessToken)
+                .orElseThrow(() -> new CustomException(NOT_EXTRACT_SOCIALID));
+
+        User user = userRepository.findBySocialId(socialID)
+                .orElseThrow(() -> new CustomException(NOT_EXIST_USER_SOCIALID));
+
+        Optional<BlackList> blackList = blackListRepository.findBySocialId(socialID);
+
+        if (!blackList.isEmpty() && blackList.get().getAccessToken().equals(accessToken)) {
+            throw new CustomException(NOT_VALID_ACCESSTOKEN);
+        }
+
+        saveAuthentication(user);
 
         filterChain.doFilter(request, response);
     }
