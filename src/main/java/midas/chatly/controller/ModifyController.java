@@ -10,6 +10,8 @@ import midas.chatly.dto.response.ModifyAttributeResponse;
 import midas.chatly.service.AuthService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -51,8 +53,9 @@ public class ModifyController {
     }
 
     @GetMapping("/profile")
-    public ResponseEntity<ModifyAttributeResponse> getEmailNickName(@RequestParam String socialId) {
-
+    public ResponseEntity<ModifyAttributeResponse> getEmailNickName() {
+        UserDetails principal = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String socialId = principal.getUsername();
         ModifyAttributeResponse emailNickName = authService.getEmailNickName(socialId);
 
         return ResponseEntity.ok(emailNickName);
