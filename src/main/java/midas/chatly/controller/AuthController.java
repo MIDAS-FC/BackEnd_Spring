@@ -12,6 +12,7 @@ import midas.chatly.jwt.service.JwtService;
 import midas.chatly.service.AuthService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -77,6 +78,7 @@ public class AuthController {
         String accessToken = jwtService.extractAccessToken(request).get();
         String refreshToken = jwtService.extractRefreshToken(request).get();
         authService.logout(accessToken, refreshToken, socialIdRequest.getSocialId());
+        SecurityContextHolder.clearContext();
 
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
