@@ -60,6 +60,7 @@ public class AuthService {
     @Value("default.profile")
     private String defaultProfile;
 
+    @Transactional
     public void sendEmail(EmailRequest emailRequest) {
 
         validateEmail(emailRequest);
@@ -166,7 +167,7 @@ public class AuthService {
                 },() -> new CustomException(NOT_EXIST_USER_EMAIL_SOCIALTYPE));
     }
 
-
+    @Transactional
     public TokenResponse validateToken(String refreshToken, String accessTokenSocialId) {
 
         if (!jwtService.isTokenValid(refreshToken)) {
