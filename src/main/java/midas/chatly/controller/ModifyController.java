@@ -1,10 +1,8 @@
 package midas.chatly.controller;
 
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import midas.chatly.dto.request.NickNameRequest;
-import midas.chatly.dto.request.ResetPasswordRequest;
 import midas.chatly.dto.request.ValidateNickNameRequest;
 import midas.chatly.dto.response.ModifyAttributeResponse;
 import midas.chatly.service.AuthService;
@@ -25,14 +23,6 @@ import java.util.Map;
 public class ModifyController {
 
     private final AuthService authService;
-
-    @PostMapping("/auth/reset-password")
-    public ResponseEntity<Object> resetPassword(@Valid @RequestBody ResetPasswordRequest resetPasswordRequest) {
-
-        authService.resetPassword(resetPasswordRequest);
-
-        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-    }
 
     @PostMapping("/change-nickname")
     public ResponseEntity<Object> changeNickName(@RequestBody ValidateNickNameRequest validateNickNameRequest) {
