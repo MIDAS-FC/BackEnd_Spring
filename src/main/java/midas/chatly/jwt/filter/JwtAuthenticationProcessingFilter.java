@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.util.Optional;
 import java.util.UUID;
 
+import static midas.chatly.error.CustomServletException.sendJsonError;
 import static midas.chatly.error.ErrorCode.*;
 
 @RequiredArgsConstructor
@@ -39,49 +40,60 @@ public class JwtAuthenticationProcessingFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        AntPathMatcher pathMatcher = new AntPathMatcher();
-        String requestURI = request.getRequestURI();
+        try {
+            AntPathMatcher pathMatcher = new AntPathMatcher();
+            String requestURI = request.getRequestURI();
 
-        if (requestURI.equals(LOGIN_CHECK_URL) || pathMatcher.match("/auth/**", requestURI)) {
-            filterChain.doFilter(request, response);
-            return;
+            if (requestURI.equals(LOGIN_CHECK_URL) || pathMatcher.match("/auth/**", requestURI)) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            String accessToken = jwtService.extractAccessToken(request)
+                    .filter(jwtService::isTokenValid)
+                    .orElse(null);
+
+            if (accessToken != null) {
+                checkAccessTokenAndAuthentication(request, response, filterChain);
+                return;
+            }
+
+            if (accessToken == null) {
+                throw new CustomException(NOT_VALID_ACCESSTOKEN);
+            }
+        } catch (CustomException e) {
+            sendJsonError(response, e.getErrorCode().getHttpStatus().value(), e.getErrorCode().getMessage());
         }
 
-        String accessToken = jwtService.extractAccessToken(request)
-                .filter(jwtService::isTokenValid)
-                .orElse(null);
 
-        if (accessToken != null) {
-            checkAccessTokenAndAuthentication(request, response, filterChain);
-            return;
-        }
-
-        if (accessToken == null) {
-            throw new CustomException(NOT_VALID_ACCESSTOKEN);
-        }
     }
 
     public void checkAccessTokenAndAuthentication(HttpServletRequest request, HttpServletResponse response,
                                                   FilterChain filterChain) throws ServletException, IOException {
-        String accessToken = jwtService.extractAccessToken(request)
-                .filter(jwtService::isTokenValid)
-                .orElseThrow(() -> new CustomException(NOT_EXTRACT_ACCESSTOKEN));
+        try {
+            String accessToken = jwtService.extractAccessToken(request)
+                    .filter(jwtService::isTokenValid)
+                    .orElseThrow(() -> new CustomException(NOT_EXTRACT_ACCESSTOKEN));
 
-        String socialID = jwtService.extractSocialId(accessToken)
-                .orElseThrow(() -> new CustomException(NOT_EXTRACT_SOCIALID));
+            String socialID = jwtService.extractSocialId(accessToken)
+                    .orElseThrow(() -> new CustomException(NOT_EXTRACT_SOCIALID));
 
-        User user = userRepository.findBySocialId(socialID)
-                .orElseThrow(() -> new CustomException(NOT_EXIST_USER_SOCIALID));
+            User user = userRepository.findBySocialId(socialID)
+                    .orElseThrow(() -> new CustomException(NOT_EXIST_USER_SOCIALID));
 
-        Optional<BlackList> blackList = blackListRepository.findBySocialId(socialID);
+            Optional<BlackList> blackList = blackListRepository.findBySocialId(socialID);
 
-        if (!blackList.isEmpty() && blackList.get().getAccessToken().equals(accessToken)) {
-            throw new CustomException(NOT_VALID_ACCESSTOKEN);
+            if (!blackList.isEmpty() && blackList.get().getAccessToken().equals(accessToken)) {
+                throw new CustomException(NOT_VALID_ACCESSTOKEN);
+            }
+
+            saveAuthentication(user);
+
+            filterChain.doFilter(request, response);
+        } catch (CustomException e) {
+            sendJsonError(response, e.getErrorCode().getHttpStatus().value(), e.getErrorCode().getMessage());
         }
 
-        saveAuthentication(user);
-
-        filterChain.doFilter(request, response);
     }
 
 

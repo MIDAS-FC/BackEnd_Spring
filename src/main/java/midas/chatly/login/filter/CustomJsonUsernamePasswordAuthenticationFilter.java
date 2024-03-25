@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
+import static midas.chatly.error.CustomServletException.sendJsonError;
 import static midas.chatly.error.ErrorCode.NOT_EQUAL_JSON;
 
 
@@ -43,22 +44,28 @@ public class CustomJsonUsernamePasswordAuthenticationFilter extends AbstractAuth
 
     @Override
     public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response) throws AuthenticationException, IOException {
-        if(request.getContentType() == null || !request.getContentType().equals(CONTENT_TYPE)  ) {
-            throw new CustomException(NOT_EQUAL_JSON);
+        try {
+            if (request.getContentType() == null || !request.getContentType().equals(CONTENT_TYPE)) {
+                throw new CustomException(NOT_EQUAL_JSON);
+            }
+
+            String messageBody = StreamUtils.copyToString(request.getInputStream(), StandardCharsets.UTF_8);
+
+            Map<String, String> usernamePasswordMap = objectMapper.readValue(messageBody, Map.class);
+
+            String email = usernamePasswordMap.get(USERNAME_KEY);
+            String password = usernamePasswordMap.get(PASSWORD_KEY);
+            String socialType = usernamePasswordMap.get(SOCIAL_KEY);
+
+            User user = userRepository.findBySocialTypeAndEmail(socialType, email).get();
+
+            UsernamePasswordAuthenticationToken authRequest = new UsernamePasswordAuthenticationToken(user.getSocialId(), password);
+
+            return this.getAuthenticationManager().authenticate(authRequest);
+        } catch (CustomException e) {
+            sendJsonError(response, e.getErrorCode().getHttpStatus().value(), e.getErrorCode().getMessage());
+            return null;
         }
 
-        String messageBody = StreamUtils.copyToString(request.getInputStream(), StandardCharsets.UTF_8);
-
-        Map<String, String> usernamePasswordMap = objectMapper.readValue(messageBody, Map.class);
-
-        String email = usernamePasswordMap.get(USERNAME_KEY);
-        String password = usernamePasswordMap.get(PASSWORD_KEY);
-        String socialType = usernamePasswordMap.get(SOCIAL_KEY);
-
-        User user = userRepository.findBySocialTypeAndEmail(socialType, email).get();
-
-        UsernamePasswordAuthenticationToken authRequest = new UsernamePasswordAuthenticationToken(user.getSocialId(), password);//principal 과 credentials 전달
-
-        return this.getAuthenticationManager().authenticate(authRequest);
     }
 }

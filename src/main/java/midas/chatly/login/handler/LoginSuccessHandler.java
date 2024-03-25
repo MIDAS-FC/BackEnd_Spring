@@ -17,8 +17,10 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.util.Optional;
 
+import static midas.chatly.error.CustomServletException.sendJsonError;
 import static midas.chatly.error.ErrorCode.NOT_EXIST_USER_SOCIALID;
 
 
@@ -34,33 +36,38 @@ public class LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
     @Override
     @Transactional
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
-                                        Authentication authentication) {
-        String socialId = extractUsername(authentication);
+                                        Authentication authentication) throws IOException {
+        try {
+            String socialId = extractUsername(authentication);
 
-        User userInfo = userRepository.findBySocialId(socialId)
-                .orElseThrow(() -> new CustomException(NOT_EXIST_USER_SOCIALID));
-        String email = userInfo.getEmail();
+            User userInfo = userRepository.findBySocialId(socialId)
+                    .orElseThrow(() -> new CustomException(NOT_EXIST_USER_SOCIALID));
+            String email = userInfo.getEmail();
 
-        String accessToken = jwtService.generateAccessToken(socialId);
-        String refreshToken = jwtService.generateRefreshToken(socialId);
+            String accessToken = jwtService.generateAccessToken(socialId);
+            String refreshToken = jwtService.generateRefreshToken(socialId);
 
-        Optional<RefreshToken> token = refreshTokenRepository.findByRefreshToken(refreshToken);
+            Optional<RefreshToken> token = refreshTokenRepository.findByRefreshToken(refreshToken);
 
-        if (token.isEmpty()) {
-            refreshTokenRepository.save(new RefreshToken(socialId, refreshToken));
-        } else {
-            token.get().updateRefreshToken(refreshToken);
-            refreshTokenRepository.save(token.get());
+            if (token.isEmpty()) {
+                refreshTokenRepository.save(new RefreshToken(socialId, refreshToken));
+            } else {
+                token.get().updateRefreshToken(refreshToken);
+                refreshTokenRepository.save(token.get());
+            }
+
+            log.info("로그인에 성공하였습니다. 이메일 : {}", email);
+            log.info("로그인에 성공하였습니다. AccessToken : {}", accessToken);
+            log.info("로그인에 성공하였습니다. RefreshToken : {}", refreshToken);
+
+            response.setHeader("Authorization-Access", "Bearer " + accessToken);
+            response.setHeader("Authorization-Refresh", "Bearer " + refreshToken);
+            response.setHeader("socialId", socialId);
+            response.setStatus(HttpStatus.OK.value());
+        } catch (CustomException e) {
+            sendJsonError(response, e.getErrorCode().getHttpStatus().value(), e.getErrorCode().getMessage());
         }
 
-        log.info("로그인에 성공하였습니다. 이메일 : {}", email);
-        log.info("로그인에 성공하였습니다. AccessToken : {}", accessToken);
-        log.info("로그인에 성공하였습니다. RefreshToken : {}", refreshToken);
-
-        response.setHeader("Authorization-Access", "Bearer " + accessToken);
-        response.setHeader("Authorization-Refresh", "Bearer " + refreshToken);
-        response.setHeader("socialId", socialId);
-        response.setStatus(HttpStatus.OK.value());
 
     }
 

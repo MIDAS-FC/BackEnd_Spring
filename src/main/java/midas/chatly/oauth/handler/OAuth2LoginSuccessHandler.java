@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
+import static midas.chatly.error.CustomServletException.sendJsonError;
 import static midas.chatly.error.ErrorCode.NOT_EXIST_USER_SOCIALID;
 
 
@@ -75,8 +76,8 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
                 token.get().updateRefreshToken(refreshToken);
                 refreshTokenRepository.save(token.get());
             }
-        } catch (Exception e) {
-            throw e;
+        } catch (CustomException e) {
+            sendJsonError(response, e.getErrorCode().getHttpStatus().value(), e.getErrorCode().getMessage());
         }
 
     }
