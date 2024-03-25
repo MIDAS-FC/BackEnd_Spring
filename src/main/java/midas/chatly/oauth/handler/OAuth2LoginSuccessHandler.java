@@ -46,13 +46,14 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
             String accessToken = jwtService.generateAccessToken(oAuth2User.getSocialId());
             String refreshToken = jwtService.generateRefreshToken(oAuth2User.getSocialId());
+            User user = userRepository.findBySocialId(oAuth2User.getSocialId()).orElseThrow(() -> new CustomException(NOT_EXIST_USER_SOCIALID));
 
             if(oAuth2User.getRole() == Role.GUEST.getKey()) {
-                User user = userRepository.findBySocialId(oAuth2User.getSocialId()).orElseThrow(() -> new CustomException(NOT_EXIST_USER_SOCIALID));
 
                 String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:3000/login-success")
                         .queryParam("email",oAuth2User.getEmail())
                         .queryParam("socialId",oAuth2User.getSocialId())
+                        .queryParam("nickName",user.getNickName())
                         .queryParam("accessToken", accessToken)
                         .queryParam("refreshToken", refreshToken)
                         .build()
@@ -66,7 +67,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
 
             } else {
-                loginSuccess(response, oAuth2User,accessToken,refreshToken); // 로그인에 성공한 경우 access, refresh 토큰 생성
+                loginSuccess(response, oAuth2User, accessToken, refreshToken, user); // 로그인에 성공한 경우 access, refresh 토큰 생성
             }
             Optional<RefreshToken> token = refreshTokenRepository.findByRefreshToken(refreshToken);
 
@@ -82,11 +83,12 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
     }
 
-    private void loginSuccess(HttpServletResponse response, CustomOAuth2User oAuth2User,String accessToken,String refreshToken) throws IOException {
+    private void loginSuccess(HttpServletResponse response, CustomOAuth2User oAuth2User, String accessToken, String refreshToken, User user) throws IOException {
 
         String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:3000/login-success")
-                .queryParam("email",oAuth2User.getEmail())
-                .queryParam("socialId",oAuth2User.getSocialId())
+                .queryParam("email", oAuth2User.getEmail())
+                .queryParam("socialId", oAuth2User.getSocialId())
+                .queryParam("nickName",user.getNickName())
                 .queryParam("accessToken", accessToken)
                 .queryParam("refreshToken", refreshToken)
                 .build()

@@ -63,6 +63,7 @@ public class LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
             response.setHeader("Authorization-Access", "Bearer " + accessToken);
             response.setHeader("Authorization-Refresh", "Bearer " + refreshToken);
             response.setHeader("socialId", socialId);
+            response.setHeader("nickName", userInfo.getNickName());
             response.setStatus(HttpStatus.OK.value());
         } catch (CustomException e) {
             sendJsonError(response, e.getErrorCode().getHttpStatus().value(), e.getErrorCode().getMessage());
