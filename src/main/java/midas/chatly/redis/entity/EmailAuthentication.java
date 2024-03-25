@@ -7,10 +7,12 @@ import org.springframework.data.redis.core.RedisHash;
 import org.springframework.data.redis.core.TimeToLive;
 import org.springframework.data.redis.core.index.Indexed;
 
+import java.io.Serializable;
+
 @Getter
 @AllArgsConstructor
 @RedisHash(timeToLive = 600)
-public class EmailAuthentication {
+public class EmailAuthentication implements Serializable {
 
     @Id
     @Indexed
